@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#7C9082"/>
+  <g transform="translate(256, 240)" fill="none" stroke="#FAF9F6" stroke-width="10" stroke-linecap="round">
+    <!-- Body -->
+    <ellipse cx="0" cy="20" rx="100" ry="58"/>
+    <!-- Neck -->
+    <path d="M80-5 C95-18,105-38,108-50"/>
+    <path d="M72 8 C90 0,108-18,118-35"/>
+    <!-- Head -->
+    <ellipse cx="125" cy="-65" rx="32" ry="27"/>
+    <!-- Snout -->
+    <ellipse cx="152" cy="-60" rx="16" ry="10"/>
+    <!-- Nose -->
+    <circle cx="165" cy="-62" r="4" fill="#FAF9F6" stroke="none"/>
+    <!-- Eye -->
+    <circle cx="130" cy="-72" r="3.5" fill="#FAF9F6" stroke="none"/>
+    <!-- Ear -->
+    <path d="M108-82 C103-100,113-112,128-104"/>
+    <!-- Tail -->
+    <path d="M-100-5 C-120-28,-130-48,-126-70"/>
+    <path d="M-126-70 C-128-78,-122-85,-116-82"/>
+    <!-- Front legs -->
+    <path d="M45 68 L48 105 Q48 112 42 112 L36 112"/>
+    <path d="M28 70 L30 105 Q30 112 24 112 L18 112"/>
+    <!-- Back legs -->
+    <path d="M-42 66 L-46 90 Q-50 102,-54 104 Q-56 112-52 112 L-44 112"/>
+    <path d="M-25 68 L-27 90 Q-30 102,-34 104 Q-36 112-32 112 L-24 112"/>
+  </g>
+  <!-- Paw print accent -->
+  <g transform="translate(380, 390)" fill="#FAF9F6" opacity="0.5">
+    <ellipse cx="0" cy="12" rx="18" ry="14"/>
+    <circle cx="-12" cy="-4" r="6"/>
+    <circle cx="12" cy="-4" r="6"/>
+    <circle cx="-5" cy="-12" r="6"/>
+    <circle cx="5" cy="-12" r="6"/>
+  </g>
+</svg>

@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sage-50: #f0f4f1;
+  --color-sage-100: #dce5de;
+  --color-sage-200: #b9cbbe;
+  --color-sage-300: #96b19d;
+  --color-sage-400: #7c9082;
+  --color-sage-500: #657568;
+  --color-sage-600: #4f5b51;
+  --color-sage-700: #3a4239;
+  --color-sage-800: #252a26;
+  --color-sage-900: #101512;
+
+  --color-soft-white: #faf9f6;
+  --color-warm-gray: #e8e6e1;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out forwards;
+}
+
+.animate-fade-in-up-delay {
+  animation: fade-in-up 0.8s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-up-delay-2 {
+  animation: fade-in-up 0.8s ease-out 0.4s forwards;
+  opacity: 0;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out forwards;
+}
+
+@keyframes marker-pulse {
+  0% {
+    r: 8;
+    opacity: 1;
+  }
+  50% {
+    r: 12;
+    opacity: 0.6;
+  }
+  100% {
+    r: 8;
+    opacity: 1;
+  }
+}
+
+.animate-marker-pulse {
+  animation: marker-pulse 1.5s ease-in-out 3;
+}
