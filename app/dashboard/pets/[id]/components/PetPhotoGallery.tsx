@@ -14,7 +14,7 @@ type Photo = {
 type UploadNotification = {
   id: string;
   fileName: string;
-  status: "uploading" | "success" | "failed";
+  status: "uploading" | "success" | "failed" | "cancelled";
   error?: string;
 };
 
@@ -29,20 +29,22 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
   const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null);
   const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Track cancelled upload IDs so we can ignore their results
+  const cancelledRef = useRef<Set<string>>(new Set());
 
   const isUploading = notifications.some((n) => n.status === "uploading");
 
-  // Auto-dismiss successful notifications after 3 seconds
+  // Auto-dismiss successful and cancelled notifications after 3 seconds
   useEffect(() => {
-    const successIds = notifications
-      .filter((n) => n.status === "success")
+    const autoDismissIds = notifications
+      .filter((n) => n.status === "success" || n.status === "cancelled")
       .map((n) => n.id);
 
-    if (successIds.length === 0) return;
+    if (autoDismissIds.length === 0) return;
 
     const timer = setTimeout(() => {
       setNotifications((prev) =>
-        prev.filter((n) => !successIds.includes(n.id))
+        prev.filter((n) => !autoDismissIds.includes(n.id))
       );
     }, 3000);
 
@@ -61,6 +63,15 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
 
   const dismissNotification = useCallback((id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  const cancelUpload = useCallback((id: string) => {
+    cancelledRef.current.add(id);
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === id ? { ...n, status: "cancelled" as const } : n
+      )
+    );
   }, []);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -83,6 +94,12 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
       formData.set("file", file);
 
       const result = await uploadPetPhoto(petId, formData);
+
+      // If user cancelled while we were uploading, ignore the result
+      if (cancelledRef.current.has(notifId)) {
+        cancelledRef.current.delete(notifId);
+        continue;
+      }
 
       if (result.success && result.photo) {
         setPhotos((prev) => [result.photo!, ...prev]);
@@ -168,6 +185,8 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
                   ? "bg-sage-50 text-sage-600 border border-sage-100"
                   : notif.status === "success"
                   ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                  : notif.status === "cancelled"
+                  ? "bg-warm-gray/30 text-sage-400 border border-warm-gray/50"
                   : "bg-red-50 text-red-700 border border-red-100"
               }`}
             >
@@ -177,6 +196,9 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
               )}
               {notif.status === "success" && (
                 <CheckCircleIcon className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+              )}
+              {notif.status === "cancelled" && (
+                <XIcon className="w-4 h-4 text-sage-400 flex-shrink-0" />
               )}
               {notif.status === "failed" && (
                 <div className="w-4 h-4 rounded-full bg-red-200 flex items-center justify-center flex-shrink-0">
@@ -193,13 +215,27 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
                 {notif.status === "success" && (
                   <p className="text-xs opacity-70">Uploaded</p>
                 )}
+                {notif.status === "cancelled" && (
+                  <p className="text-xs opacity-70">Cancelled</p>
+                )}
                 {notif.status === "failed" && (
                   <p className="text-xs opacity-70">{notif.error}</p>
                 )}
               </div>
 
+              {/* Cancel button — shown while uploading */}
+              {notif.status === "uploading" && (
+                <button
+                  onClick={() => cancelUpload(notif.id)}
+                  className="p-1 rounded-md text-sage-400 hover:bg-sage-100 hover:text-sage-600 transition-colors flex-shrink-0 cursor-pointer"
+                  aria-label="Cancel upload"
+                >
+                  <XIcon className="w-4 h-4" />
+                </button>
+              )}
+
               {/* Dismiss button — shown for failed and success */}
-              {notif.status !== "uploading" && (
+              {(notif.status === "failed" || notif.status === "success") && (
                 <button
                   onClick={() => dismissNotification(notif.id)}
                   className={`p-1 rounded-md transition-colors flex-shrink-0 cursor-pointer ${
