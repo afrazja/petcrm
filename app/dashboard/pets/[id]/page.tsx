@@ -12,6 +12,7 @@ import HealthMap from "./components/HealthMap";
 import EditPetModal from "./components/EditPetModal";
 import DeletePetButton from "./components/DeletePetButton";
 import PetPhotoGallery from "./components/PetPhotoGallery";
+import GroomingHistory from "./components/GroomingHistory";
 
 export default async function PetProfilePage({
   params,
@@ -69,6 +70,38 @@ export default async function PetProfilePage({
       createdAt: p.created_at as string,
     };
   });
+
+  // Fetch grooming history for this pet
+  let groomingHistory: {
+    id: string;
+    service: string;
+    price: number;
+    completedAt: string;
+    notes: string | null;
+    duration: number;
+    status: string;
+  }[] = [];
+
+  try {
+    const { data: appointments } = await supabase
+      .from("appointments")
+      .select("id, service, price, completed_at, notes, duration, status")
+      .eq("pet_id", id)
+      .order("completed_at", { ascending: false })
+      .limit(20);
+
+    groomingHistory = (appointments ?? []).map((appt) => ({
+      id: appt.id,
+      service: appt.service,
+      price: Number(appt.price) || 0,
+      completedAt: appt.completed_at,
+      notes: appt.notes,
+      duration: Number(appt.duration) || 60,
+      status: (appt as unknown as { status: string }).status ?? "completed",
+    }));
+  } catch {
+    // appointments table may not exist yet
+  }
 
   // Calculate age from date_of_birth
   const dob = pet.date_of_birth ? new Date(pet.date_of_birth) : null;
@@ -254,6 +287,9 @@ export default async function PetProfilePage({
           <span className="text-sm font-normal">(No phone number)</span>
         </div>
       )}
+
+      {/* Grooming History */}
+      <GroomingHistory visits={groomingHistory} />
 
       {/* Photo Gallery */}
       <PetPhotoGallery petId={pet.id} initialPhotos={photos} />
