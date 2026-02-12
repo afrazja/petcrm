@@ -18,6 +18,7 @@ type VisitRecord = {
   completedAt: string;
   notes: string | null;
   duration: number;
+  status: string;
 };
 
 type ClientData = {

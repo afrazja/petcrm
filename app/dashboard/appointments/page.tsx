@@ -26,6 +26,7 @@ export default async function AppointmentsPage({
     completedAt: string;
     notes: string | null;
     duration: number;
+    status: string;
     petName: string;
     petBreed: string | null;
     ownerName: string;
@@ -43,6 +44,7 @@ export default async function AppointmentsPage({
         completed_at,
         notes,
         duration,
+        status,
         pets!inner ( id, name, breed, clients!inner ( full_name, phone ) )
       `
       )
@@ -64,6 +66,7 @@ export default async function AppointmentsPage({
         completedAt: appt.completed_at,
         notes: appt.notes,
         duration: Number(appt.duration) || 60,
+        status: (appt as unknown as { status: string }).status ?? "completed",
         petName: pet.name,
         petBreed: pet.breed,
         ownerName: pet.clients?.full_name ?? "Unknown",

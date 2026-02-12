@@ -11,7 +11,7 @@ import {
   CalendarIcon,
   XIcon,
 } from "@/components/icons";
-import { deleteAppointment, rescheduleAppointment } from "@/app/dashboard/actions";
+import { deleteAppointment, rescheduleAppointment, updateAppointmentStatus } from "@/app/dashboard/actions";
 
 type Appointment = {
   id: string;
@@ -20,10 +20,17 @@ type Appointment = {
   completedAt: string;
   notes: string | null;
   duration: number;
+  status: string;
   petName: string;
   petBreed: string | null;
   ownerName: string;
   ownerPhone: string | null;
+};
+
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string }> = {
+  scheduled: { label: "Scheduled", bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-400" },
+  completed: { label: "Completed", bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-400" },
+  "no-show": { label: "No-Show", bg: "bg-red-50", text: "text-red-600", dot: "bg-red-400" },
 };
 
 type Props = {
@@ -98,6 +105,12 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
     });
   }
 
+  function handleStatusChange(appointmentId: string, status: "scheduled" | "completed" | "no-show") {
+    startTransition(async () => {
+      await updateAppointmentStatus(appointmentId, status);
+    });
+  }
+
   return (
     <div>
       {/* Month header with navigation */}
@@ -160,13 +173,20 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
                 }`}
               >
                 {day}
-                {hasAppointments && (
-                  <span
-                    className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${
-                      isSelected ? "bg-white" : "bg-sage-400"
-                    }`}
-                  />
-                )}
+                {hasAppointments && (() => {
+                  const dayAppts = appointmentsByDay.get(day)!;
+                  const hasScheduled = dayAppts.some((a) => a.status === "scheduled");
+                  const dotColor = isSelected
+                    ? "bg-white"
+                    : hasScheduled
+                    ? "bg-blue-400"
+                    : "bg-emerald-400";
+                  return (
+                    <span
+                      className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${dotColor}`}
+                    />
+                  );
+                })()}
               </button>
             );
           })}
@@ -231,6 +251,15 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
                       <span className="ml-1 px-1.5 py-0.5 text-xs bg-sage-50 text-sage-400 rounded-full">
                         {appt.duration || 60}min
                       </span>
+                      {(() => {
+                        const cfg = STATUS_CONFIG[appt.status] ?? STATUS_CONFIG.completed;
+                        return (
+                          <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${cfg.bg} ${cfg.text}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                            {cfg.label}
+                          </span>
+                        );
+                      })()}
                     </div>
                     {appt.notes && (
                       <p className="mt-1.5 text-xs text-sage-400 italic">
@@ -238,30 +267,55 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
                       </p>
                     )}
 
-                    {/* Action buttons */}
+                    {/* Status + Action buttons */}
                     {!isDeleting && !isRescheduling && (
-                      <div className="mt-3 pt-3 border-t border-warm-gray/30 flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            setRescheduleId(appt.id);
-                            setRescheduleDate(formatDateTimeLocal(appt.completedAt));
-                            setDeleteConfirmId(null);
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sage-500 hover:text-sage-700 border border-warm-gray/50 hover:border-sage-300 rounded-lg transition-colors"
-                        >
-                          <CalendarIcon className="w-3.5 h-3.5" />
-                          Reschedule
-                        </button>
-                        <button
-                          onClick={() => {
-                            setDeleteConfirmId(appt.id);
-                            setRescheduleId(null);
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sage-400 hover:text-red-500 border border-warm-gray/50 hover:border-red-200 rounded-lg transition-colors"
-                        >
-                          <TrashIcon className="w-3.5 h-3.5" />
-                          Delete
-                        </button>
+                      <div className="mt-3 pt-3 border-t border-warm-gray/30 space-y-2">
+                        {/* Status buttons */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-sage-400 mr-1">Status:</span>
+                          {(["scheduled", "completed", "no-show"] as const).map((s) => {
+                            const cfg = STATUS_CONFIG[s];
+                            const isActive = appt.status === s;
+                            return (
+                              <button
+                                key={s}
+                                onClick={() => !isActive && handleStatusChange(appt.id, s)}
+                                disabled={isPending || isActive}
+                                className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                                  isActive
+                                    ? `${cfg.bg} ${cfg.text} border border-current/20`
+                                    : "text-sage-400 hover:text-sage-600 border border-warm-gray/50 hover:border-sage-300"
+                                } disabled:opacity-60`}
+                              >
+                                {cfg.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setRescheduleId(appt.id);
+                              setRescheduleDate(formatDateTimeLocal(appt.completedAt));
+                              setDeleteConfirmId(null);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sage-500 hover:text-sage-700 border border-warm-gray/50 hover:border-sage-300 rounded-lg transition-colors"
+                          >
+                            <CalendarIcon className="w-3.5 h-3.5" />
+                            Reschedule
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeleteConfirmId(appt.id);
+                              setRescheduleId(null);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sage-400 hover:text-red-500 border border-warm-gray/50 hover:border-red-200 rounded-lg transition-colors"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     )}
 

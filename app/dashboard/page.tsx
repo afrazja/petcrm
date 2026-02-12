@@ -71,7 +71,7 @@ export default async function DashboardPage() {
   }[] = [];
 
   try {
-    // Fetch today's check-ins
+    // Fetch today's check-ins (only completed)
     const { data: todaysAppointments } = await supabase
       .from("appointments")
       .select(
@@ -82,6 +82,7 @@ export default async function DashboardPage() {
         clients!inner ( phone )
       `
       )
+      .eq("status", "completed")
       .gte("completed_at", todayStart.toISOString())
       .lte("completed_at", todayEnd.toISOString())
       .order("completed_at", { ascending: false });
@@ -104,11 +105,12 @@ export default async function DashboardPage() {
 
     todayCount = formattedPets.length;
 
-    // Fetch this month's appointments for revenue
+    // Fetch this month's completed appointments for revenue
     const { data: monthAppointments } = await supabase
       .from("appointments")
       .select("price, completed_at, service")
       .gte("completed_at", monthStart.toISOString())
+      .eq("status", "completed")
       .not("price", "is", null);
 
     const revenueData = monthAppointments ?? [];
@@ -153,6 +155,7 @@ export default async function DashboardPage() {
       .select(
         "id, service, completed_at, pets!inner(name, clients!inner(full_name))"
       )
+      .eq("status", "scheduled")
       .gte("completed_at", tomorrowStart.toISOString())
       .lte("completed_at", weekAhead.toISOString())
       .order("completed_at", { ascending: true })
@@ -184,6 +187,7 @@ export default async function DashboardPage() {
     const { data: allVisits } = await supabase
       .from("appointments")
       .select("client_id, completed_at")
+      .eq("status", "completed")
       .order("completed_at", { ascending: false });
 
     // Group visits by client, find the most recent for each

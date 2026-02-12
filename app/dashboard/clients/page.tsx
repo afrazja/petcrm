@@ -32,6 +32,7 @@ export default async function ClientsPage() {
     completed_at: string;
     notes: string | null;
     duration: number | null;
+    status: string;
     pets: { name: string } | null;
   }[] = [];
 
@@ -39,7 +40,7 @@ export default async function ClientsPage() {
     const { data, error } = await supabase
       .from("appointments")
       .select(
-        "id, client_id, pet_id, service, price, completed_at, notes, duration, pets ( name )"
+        "id, client_id, pet_id, service, price, completed_at, notes, duration, status, pets ( name )"
       )
       .order("completed_at", { ascending: false });
 
@@ -64,6 +65,7 @@ export default async function ClientsPage() {
         completedAt: string;
         notes: string | null;
         duration: number;
+        status: string;
       }[];
     }
   >();
@@ -71,24 +73,27 @@ export default async function ClientsPage() {
   for (const appt of appointments) {
     const petName =
       (appt.pets as unknown as { name: string })?.name ?? "Unknown";
+    const price = Number(appt.price) || 0;
+    const status = appt.status ?? "completed";
     const visit = {
       id: appt.id,
       petName,
       service: appt.service,
-      price: Number(appt.price) || 0,
+      price,
       completedAt: appt.completed_at,
       notes: appt.notes,
       duration: Number(appt.duration) || 60,
+      status,
     };
 
     const existing = appointmentsByClient.get(appt.client_id);
     if (existing) {
-      existing.totalSpent += visit.price;
+      if (status === "completed") existing.totalSpent += price;
       existing.visits.push(visit);
     } else {
       appointmentsByClient.set(appt.client_id, {
         lastVisit: appt.completed_at,
-        totalSpent: visit.price,
+        totalSpent: status === "completed" ? price : 0,
         visits: [visit],
       });
     }

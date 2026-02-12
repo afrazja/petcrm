@@ -146,6 +146,7 @@ export async function quickCheckIn(formData: FormData): Promise<ActionResultWith
       price: checkInPrice,
       notes: notes || null,
       duration,
+      status: "completed",
     });
 
   if (appointmentError) {
@@ -294,6 +295,7 @@ export async function logVisit(
     price,
     notes: notes?.trim() || null,
     duration: duration || 60,
+    status: "completed",
   });
 
   if (insertError) {
@@ -492,15 +494,20 @@ export async function addAppointment(formData: FormData): Promise<ActionResultWi
 
   if (!pet) return { success: false, error: "Pet not found." };
 
+  // Determine status: if scheduled in the future → "scheduled", otherwise "completed"
+  const scheduledDate = new Date(scheduledAt);
+  const appointmentStatus = scheduledDate > new Date() ? "scheduled" : "completed";
+
   const { error: insertError } = await supabase.from("appointments").insert({
     pet_id: petId,
     client_id: pet.client_id,
     profile_id: user.id,
     service: service,
     price,
-    completed_at: new Date(scheduledAt).toISOString(),
+    completed_at: scheduledDate.toISOString(),
     notes: notes || null,
     duration,
+    status: appointmentStatus,
   });
 
   if (insertError) return { success: false, error: "Failed to create appointment." };
@@ -537,6 +544,7 @@ export async function rebookAppointment(data: {
     price: 0,
     completed_at: new Date(data.scheduledAt).toISOString(),
     duration: data.duration || 60,
+    status: "scheduled",
   });
 
   if (insertError) return { success: false, error: "Failed to create rebooking." };
@@ -883,10 +891,34 @@ export async function rescheduleAppointment(
 
   const { error: updateError } = await supabase
     .from("appointments")
-    .update({ completed_at: new Date(newDate).toISOString() })
+    .update({
+      completed_at: new Date(newDate).toISOString(),
+      status: "scheduled",
+    })
     .eq("id", appointmentId);
 
   if (updateError) return { success: false, error: "Failed to reschedule appointment." };
+
+  revalidatePath("/dashboard/appointments");
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function updateAppointmentStatus(
+  appointmentId: string,
+  status: "scheduled" | "completed" | "no-show"
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const { error: updateError } = await supabase
+    .from("appointments")
+    .update({ status })
+    .eq("id", appointmentId);
+
+  if (updateError) return { success: false, error: "Failed to update status." };
 
   revalidatePath("/dashboard/appointments");
   revalidatePath("/dashboard/clients");

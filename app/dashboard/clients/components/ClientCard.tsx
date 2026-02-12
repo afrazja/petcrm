@@ -30,6 +30,7 @@ type VisitRecord = {
   completedAt: string;
   notes: string | null;
   duration: number;
+  status: string;
 };
 
 type ServicePreset = { name: string; defaultPrice: number; defaultDuration: number };
@@ -226,6 +227,15 @@ export default function ClientCard({
                     </span>
                     <span className="text-sage-400 mx-1.5">&middot;</span>
                     <span className="text-sage-500">{visit.petName}</span>
+                    {visit.status && visit.status !== "completed" && (
+                      <span className={`ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded-full ${
+                        visit.status === "scheduled"
+                          ? "bg-blue-50 text-blue-600"
+                          : "bg-red-50 text-red-500"
+                      }`}>
+                        {visit.status === "scheduled" ? "Scheduled" : "No-Show"}
+                      </span>
+                    )}
                   </div>
                   <div className="flex-shrink-0 text-right">
                     <span className="text-sage-700 font-medium">
