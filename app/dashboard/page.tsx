@@ -53,11 +53,13 @@ export default async function DashboardPage() {
     petName: string;
     service: string;
     ownerName: string;
+    ownerPhone: string | null;
     scheduledAt: string;
   }[] = [];
   let overdueClients: {
     id: string;
     fullName: string;
+    phone: string | null;
     petNames: string[];
     lastVisit: string;
     weeksOverdue: number;
@@ -66,6 +68,7 @@ export default async function DashboardPage() {
     petId: string;
     petName: string;
     ownerName: string;
+    ownerPhone: string | null;
     vaccineExpiry: string;
     daysUntilExpiry: number;
   }[] = [];
@@ -153,7 +156,7 @@ export default async function DashboardPage() {
     const { data: upcomingAppts } = await supabase
       .from("appointments")
       .select(
-        "id, service, completed_at, pets!inner(name, clients!inner(full_name))"
+        "id, service, completed_at, pets!inner(name, clients!inner(full_name, phone))"
       )
       .eq("status", "scheduled")
       .gte("completed_at", tomorrowStart.toISOString())
@@ -164,13 +167,14 @@ export default async function DashboardPage() {
     upcomingAppointments = (upcomingAppts ?? []).map((appt) => {
       const pet = appt.pets as unknown as {
         name: string;
-        clients: { full_name: string };
+        clients: { full_name: string; phone: string | null };
       };
       return {
         id: appt.id,
         petName: pet.name,
         service: appt.service,
         ownerName: pet.clients?.full_name ?? "Unknown",
+        ownerPhone: pet.clients?.phone ?? null,
         scheduledAt: appt.completed_at,
       };
     });
@@ -181,7 +185,7 @@ export default async function DashboardPage() {
 
     const { data: allClients } = await supabase
       .from("clients")
-      .select("id, full_name, pets(name)")
+      .select("id, full_name, phone, pets(name)")
       .order("full_name");
 
     const { data: allVisits } = await supabase
@@ -215,6 +219,7 @@ export default async function DashboardPage() {
         return {
           id: client.id,
           fullName: client.full_name,
+          phone: client.phone ?? null,
           petNames: pets.map((p) => p.name),
           lastVisit,
           weeksOverdue: weeksAgo,
@@ -233,7 +238,7 @@ export default async function DashboardPage() {
 
     const { data: expiringPets } = await supabase
       .from("pets")
-      .select("id, name, vaccine_expiry_date, clients!inner(full_name)")
+      .select("id, name, vaccine_expiry_date, clients!inner(full_name, phone)")
       .not("vaccine_expiry_date", "is", null)
       .lte(
         "vaccine_expiry_date",
@@ -251,11 +256,12 @@ export default async function DashboardPage() {
       const diffMs = expiryDate.getTime() - today.getTime();
       const daysUntilExpiry = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
 
-      const owner = pet.clients as unknown as { full_name: string };
+      const owner = pet.clients as unknown as { full_name: string; phone: string | null };
       return {
         petId: pet.id,
         petName: pet.name,
         ownerName: owner?.full_name ?? "Unknown",
+        ownerPhone: owner?.phone ?? null,
         vaccineExpiry: pet.vaccine_expiry_date,
         daysUntilExpiry,
       };

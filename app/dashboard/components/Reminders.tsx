@@ -4,6 +4,7 @@ import {
   CalendarIcon,
   ClockIcon,
   PawPrintIcon,
+  WhatsAppIcon,
 } from "@/components/icons";
 
 type UpcomingAppointment = {
@@ -11,12 +12,14 @@ type UpcomingAppointment = {
   petName: string;
   service: string;
   ownerName: string;
+  ownerPhone: string | null;
   scheduledAt: string;
 };
 
 type OverdueClient = {
   id: string;
   fullName: string;
+  phone: string | null;
   petNames: string[];
   lastVisit: string;
   weeksOverdue: number;
@@ -26,6 +29,7 @@ type ExpiringVaccine = {
   petId: string;
   petName: string;
   ownerName: string;
+  ownerPhone: string | null;
   vaccineExpiry: string;
   daysUntilExpiry: number; // negative = already expired
 };
@@ -64,6 +68,13 @@ function groupByDay(appointments: UpcomingAppointment[]) {
     }
   }
   return Array.from(groups.entries());
+}
+
+/** Build a wa.me URL — prepend "1" for 10-digit US/CA numbers */
+function buildWhatsAppUrl(phone: string, message: string): string {
+  let waPhone = phone;
+  if (waPhone.length === 10) waPhone = `1${waPhone}`;
+  return `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
 }
 
 export default function Reminders({
@@ -108,13 +119,22 @@ export default function Reminders({
                   </p>
                   <div className="space-y-1">
                     {appts.map((appt) => {
-                      const time = new Date(
-                        appt.scheduledAt
-                      ).toLocaleTimeString("en-US", {
+                      const date = new Date(appt.scheduledAt);
+                      const time = date.toLocaleTimeString("en-US", {
                         hour: "numeric",
                         minute: "2-digit",
                         hour12: true,
                       });
+                      const dayStr = date.toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "short",
+                        day: "numeric",
+                      });
+                      const reminderMsg = `Hi ${appt.ownerName}! Just a reminder that ${appt.petName} has a ${appt.service} appointment on ${dayStr} at ${time}. See you then!`;
+                      const waUrl = appt.ownerPhone
+                        ? buildWhatsAppUrl(appt.ownerPhone, reminderMsg)
+                        : null;
+
                       return (
                         <div
                           key={appt.id}
@@ -129,13 +149,24 @@ export default function Reminders({
                               {appt.service}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 flex-shrink-0 text-right">
-                            <span className="text-sage-400 text-xs">
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-sage-400 text-xs hidden sm:inline">
                               {appt.ownerName}
                             </span>
                             <span className="text-sage-500 text-xs font-medium">
                               {time}
                             </span>
+                            {waUrl && (
+                              <a
+                                href={waUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1 rounded-md text-[#25D366] hover:bg-emerald-50 transition-colors"
+                                title={`Send reminder to ${appt.ownerName}`}
+                              >
+                                <WhatsAppIcon className="w-4 h-4" />
+                              </a>
+                            )}
                           </div>
                         </div>
                       );
@@ -164,26 +195,49 @@ export default function Reminders({
               </span>
             </div>
             <div className="space-y-1">
-              {overdueClients.map((client) => (
-                <Link
-                  key={client.id}
-                  href="/dashboard/clients"
-                  className="flex items-center justify-between px-3 py-2 bg-red-50/50 rounded-lg text-sm hover:bg-red-50 transition-colors"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-medium text-sage-700 truncate">
-                      {client.fullName}
-                    </span>
-                    <span className="text-sage-400">&middot;</span>
-                    <span className="text-sage-500 text-xs truncate">
-                      {client.petNames.join(", ")}
-                    </span>
+              {overdueClients.map((client) => {
+                const petList = client.petNames.join(" & ");
+                const overdueMsg = `Hi ${client.fullName}! It's been a while since ${petList}'s last grooming. Would you like to book an appointment? We'd love to see you again!`;
+                const waUrl = client.phone
+                  ? buildWhatsAppUrl(client.phone, overdueMsg)
+                  : null;
+
+                return (
+                  <div
+                    key={client.id}
+                    className="flex items-center justify-between px-3 py-2 bg-red-50/50 rounded-lg text-sm"
+                  >
+                    <Link
+                      href="/dashboard/clients"
+                      className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity"
+                    >
+                      <span className="font-medium text-sage-700 truncate">
+                        {client.fullName}
+                      </span>
+                      <span className="text-sage-400">&middot;</span>
+                      <span className="text-sage-500 text-xs truncate">
+                        {client.petNames.join(", ")}
+                      </span>
+                    </Link>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-red-500 text-xs font-medium">
+                        {client.weeksOverdue}w overdue
+                      </span>
+                      {waUrl && (
+                        <a
+                          href={waUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1 rounded-md text-[#25D366] hover:bg-emerald-50 transition-colors"
+                          title={`Message ${client.fullName}`}
+                        >
+                          <WhatsAppIcon className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <span className="text-red-500 text-xs font-medium flex-shrink-0">
-                    {client.weeksOverdue}w overdue
-                  </span>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -210,15 +264,24 @@ export default function Reminders({
                   ? "Expires today"
                   : `Expires in ${vaccine.daysUntilExpiry}d`;
 
+                const vaccineMsg = isExpired
+                  ? `Hi ${vaccine.ownerName}! ${vaccine.petName}'s vaccination has expired. Please schedule a vet visit to get it updated before your next grooming appointment.`
+                  : `Hi ${vaccine.ownerName}! Just a heads up — ${vaccine.petName}'s vaccination expires soon (${new Date(vaccine.vaccineExpiry).toLocaleDateString("en-US", { month: "short", day: "numeric" })}). Please renew it before the next grooming visit!`;
+                const waUrl = vaccine.ownerPhone
+                  ? buildWhatsAppUrl(vaccine.ownerPhone, vaccineMsg)
+                  : null;
+
                 return (
-                  <Link
+                  <div
                     key={vaccine.petId}
-                    href={`/dashboard/pets/${vaccine.petId}`}
-                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-sage-50 transition-colors ${
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${
                       isExpired ? "bg-red-50/50" : "bg-amber-50/50"
                     }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <Link
+                      href={`/dashboard/pets/${vaccine.petId}`}
+                      className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity"
+                    >
                       <span className="font-medium text-sage-700 truncate">
                         {vaccine.petName}
                       </span>
@@ -226,15 +289,28 @@ export default function Reminders({
                       <span className="text-sage-500 text-xs truncate">
                         {vaccine.ownerName}
                       </span>
+                    </Link>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span
+                        className={`text-xs font-medium ${
+                          isExpired ? "text-red-500" : "text-amber-600"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                      {waUrl && (
+                        <a
+                          href={waUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1 rounded-md text-[#25D366] hover:bg-emerald-50 transition-colors"
+                          title={`Message ${vaccine.ownerName}`}
+                        >
+                          <WhatsAppIcon className="w-4 h-4" />
+                        </a>
+                      )}
                     </div>
-                    <span
-                      className={`text-xs font-medium flex-shrink-0 ${
-                        isExpired ? "text-red-500" : "text-amber-600"
-                      }`}
-                    >
-                      {label}
-                    </span>
-                  </Link>
+                  </div>
                 );
               })}
             </div>
