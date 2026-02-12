@@ -107,6 +107,7 @@ export type Database = {
           service: string;
           price: number;
           notes: string | null;
+          duration: number | null;
           completed_at: string;
           created_at: string;
         };
@@ -118,6 +119,7 @@ export type Database = {
           service?: string;
           price?: number;
           notes?: string | null;
+          duration?: number | null;
           completed_at?: string;
           created_at?: string;
         };
@@ -125,6 +127,7 @@ export type Database = {
           service?: string;
           price?: number;
           notes?: string | null;
+          duration?: number | null;
           completed_at?: string;
         };
       };

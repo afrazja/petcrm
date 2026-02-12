@@ -9,7 +9,7 @@ type PetOption = {
   name: string;
 };
 
-type ServicePreset = { name: string; defaultPrice: number };
+type ServicePreset = { name: string; defaultPrice: number; defaultDuration: number };
 
 type LogVisitModalProps = {
   clientId: string;
@@ -29,6 +29,7 @@ export default function LogVisitModal({
   const [selectedPetId, setSelectedPetId] = useState(pets[0]?.id ?? "");
   const [service, setService] = useState("");
   const [price, setPrice] = useState("");
+  const [duration, setDuration] = useState("60");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -59,7 +60,8 @@ export default function LogVisitModal({
     const priceNum = parseFloat(price) || 0;
 
     startTransition(async () => {
-      const result = await logVisit(clientId, selectedPetId, service, priceNum, notes);
+      const durationNum = parseInt(duration) || 60;
+      const result = await logVisit(clientId, selectedPetId, service, priceNum, notes, durationNum);
       if (result.success) {
         onClose();
       } else {
@@ -138,6 +140,7 @@ export default function LogVisitModal({
                     onClick={() => {
                       setService(preset.name);
                       setPrice(preset.defaultPrice.toString());
+                      setDuration(preset.defaultDuration.toString());
                     }}
                     className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
                       service === preset.name
@@ -146,7 +149,7 @@ export default function LogVisitModal({
                     }`}
                   >
                     {preset.name}
-                    <span className="ml-1 opacity-70">${preset.defaultPrice}</span>
+                    <span className="ml-1 opacity-70">${preset.defaultPrice} · {preset.defaultDuration}min</span>
                   </button>
                 ))}
               </div>
@@ -179,6 +182,26 @@ export default function LogVisitModal({
                 placeholder="0.00"
                 className="w-full pl-8 pr-4 py-3 border border-warm-gray rounded-xl text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base"
               />
+            </div>
+          </div>
+
+          {/* Duration */}
+          <div className="mb-5">
+            <label className="block text-sm font-medium text-sage-600 mb-1.5">
+              Duration
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                inputMode="numeric"
+                min="5"
+                step="5"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                placeholder="60"
+                className="w-full px-4 pr-14 py-3 border border-warm-gray rounded-xl text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sage-400 text-sm font-medium">min</span>
             </div>
           </div>
 

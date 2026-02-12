@@ -263,12 +263,13 @@ export default async function DashboardPage() {
   // Fetch service presets for QuickCheckIn
   const { data: presetRows } = await supabase
     .from("service_presets")
-    .select("name, default_price")
+    .select("name, default_price, default_duration")
     .order("sort_order", { ascending: true });
 
   const servicePresets = (presetRows ?? []).map((p) => ({
     name: p.name as string,
     defaultPrice: Number(p.default_price),
+    defaultDuration: Number((p as unknown as { default_duration: number }).default_duration) || 60,
   }));
 
   const stats = [

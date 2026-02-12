@@ -12,7 +12,7 @@ function getSixWeeksFromNow(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-type ServicePreset = { name: string; defaultPrice: number };
+type ServicePreset = { name: string; defaultPrice: number; defaultDuration: number };
 
 export default function QuickCheckIn({ servicePresets = [] }: { servicePresets?: ServicePreset[] }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,6 +20,7 @@ export default function QuickCheckIn({ servicePresets = [] }: { servicePresets?:
   const [isPending, startTransition] = useTransition();
   const [service, setService] = useState(servicePresets[0]?.name ?? "Grooming");
   const [price, setPrice] = useState(servicePresets[0]?.defaultPrice?.toString() ?? "0");
+  const [duration, setDuration] = useState(servicePresets[0]?.defaultDuration?.toString() ?? "60");
 
   // Rebook state
   const [rebookData, setRebookData] = useState<ActionResultWithRebook["rebookData"] | null>(null);
@@ -207,6 +208,7 @@ export default function QuickCheckIn({ servicePresets = [] }: { servicePresets?:
               <form action={handleSubmit} className="space-y-4">
                 <input type="hidden" name="service" value={service} />
                 <input type="hidden" name="price" value={price} />
+                <input type="hidden" name="duration" value={duration} />
                 <div>
                   <label
                     htmlFor="petName"
@@ -271,6 +273,7 @@ export default function QuickCheckIn({ servicePresets = [] }: { servicePresets?:
                           onClick={() => {
                             setService(preset.name);
                             setPrice(preset.defaultPrice.toString());
+                            setDuration(preset.defaultDuration.toString());
                           }}
                           className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
                             service === preset.name
@@ -279,7 +282,7 @@ export default function QuickCheckIn({ servicePresets = [] }: { servicePresets?:
                           }`}
                         >
                           {preset.name}
-                          <span className="ml-1 opacity-70">${preset.defaultPrice}</span>
+                          <span className="ml-1 opacity-70">${preset.defaultPrice} · {preset.defaultDuration}min</span>
                         </button>
                       ))}
                     </div>
@@ -303,6 +306,26 @@ export default function QuickCheckIn({ servicePresets = [] }: { servicePresets?:
                       placeholder="0.00"
                       className="w-full pl-8 pr-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
                     />
+                  </div>
+                </div>
+
+                {/* Duration */}
+                <div>
+                  <label className="block text-sm font-medium text-sage-700 mb-1.5">
+                    Duration
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="5"
+                      step="5"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      placeholder="60"
+                      className="w-full px-4 pr-14 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sage-400 text-sm font-medium">min</span>
                   </div>
                 </div>
 

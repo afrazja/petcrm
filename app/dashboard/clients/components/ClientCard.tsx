@@ -29,9 +29,10 @@ type VisitRecord = {
   price: number;
   completedAt: string;
   notes: string | null;
+  duration: number;
 };
 
-type ServicePreset = { name: string; defaultPrice: number };
+type ServicePreset = { name: string; defaultPrice: number; defaultDuration: number };
 
 type ClientCardProps = {
   id: string;

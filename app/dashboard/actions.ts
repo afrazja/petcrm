@@ -134,6 +134,7 @@ export async function quickCheckIn(formData: FormData): Promise<ActionResultWith
   const service = (formData.get("service") as string)?.trim() || "Grooming";
   const checkInPrice = parseFloat((formData.get("price") as string) || "0") || 0;
   const notes = (formData.get("notes") as string)?.trim();
+  const duration = parseInt((formData.get("duration") as string) || "60") || 60;
 
   const { error: appointmentError } = await supabase
     .from("appointments")
@@ -144,6 +145,7 @@ export async function quickCheckIn(formData: FormData): Promise<ActionResultWith
       service,
       price: checkInPrice,
       notes: notes || null,
+      duration,
     });
 
   if (appointmentError) {
@@ -234,7 +236,8 @@ export async function logVisit(
   petId: string,
   service: string,
   price: number,
-  notes?: string
+  notes?: string,
+  duration?: number
 ): Promise<ActionResult> {
   const supabase = await createClient();
 
@@ -262,6 +265,7 @@ export async function logVisit(
     service: service.trim(),
     price,
     notes: notes?.trim() || null,
+    duration: duration || 60,
   });
 
   if (insertError) {
@@ -439,6 +443,7 @@ export async function addAppointment(formData: FormData): Promise<ActionResultWi
   const priceStr = (formData.get("price") as string)?.trim();
   const scheduledAt = (formData.get("scheduledAt") as string)?.trim();
   const notes = (formData.get("notes") as string)?.trim();
+  const duration = parseInt((formData.get("duration") as string) || "60") || 60;
 
   if (!petId) return { success: false, error: "Please select a pet." };
   if (!service) return { success: false, error: "Service is required." };
@@ -467,6 +472,7 @@ export async function addAppointment(formData: FormData): Promise<ActionResultWi
     price,
     completed_at: new Date(scheduledAt).toISOString(),
     notes: notes || null,
+    duration,
   });
 
   if (insertError) return { success: false, error: "Failed to create appointment." };
@@ -489,6 +495,7 @@ export async function rebookAppointment(data: {
   clientId: string;
   service: string;
   scheduledAt: string;
+  duration?: number;
 }): Promise<ActionResult> {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -501,6 +508,7 @@ export async function rebookAppointment(data: {
     service: data.service,
     price: 0,
     completed_at: new Date(data.scheduledAt).toISOString(),
+    duration: data.duration || 60,
   });
 
   if (insertError) return { success: false, error: "Failed to create rebooking." };
@@ -711,9 +719,11 @@ export async function deletePetPhoto(photoId: string, petId: string): Promise<Ac
 export async function addServicePreset(formData: FormData): Promise<ActionResult> {
   const name = (formData.get("name") as string)?.trim();
   const priceStr = (formData.get("defaultPrice") as string)?.trim();
+  const durationStr = (formData.get("defaultDuration") as string)?.trim();
 
   if (!name) return { success: false, error: "Service name is required." };
   const defaultPrice = priceStr ? parseFloat(priceStr) : 0;
+  const defaultDuration = durationStr ? parseInt(durationStr) : 60;
 
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -733,6 +743,7 @@ export async function addServicePreset(formData: FormData): Promise<ActionResult
     profile_id: user.id,
     name,
     default_price: defaultPrice,
+    default_duration: defaultDuration,
     sort_order: nextOrder,
   });
 
@@ -747,10 +758,12 @@ export async function editServicePreset(formData: FormData): Promise<ActionResul
   const id = (formData.get("id") as string)?.trim();
   const name = (formData.get("name") as string)?.trim();
   const priceStr = (formData.get("defaultPrice") as string)?.trim();
+  const durationStr = (formData.get("defaultDuration") as string)?.trim();
 
   if (!id) return { success: false, error: "Preset ID is missing." };
   if (!name) return { success: false, error: "Service name is required." };
   const defaultPrice = priceStr ? parseFloat(priceStr) : 0;
+  const defaultDuration = durationStr ? parseInt(durationStr) : 60;
 
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -758,7 +771,7 @@ export async function editServicePreset(formData: FormData): Promise<ActionResul
 
   const { error: updateError } = await supabase
     .from("service_presets")
-    .update({ name, default_price: defaultPrice })
+    .update({ name, default_price: defaultPrice, default_duration: defaultDuration })
     .eq("id", id);
 
   if (updateError) return { success: false, error: "Failed to update service." };
@@ -791,12 +804,12 @@ export async function importDefaultPresets(): Promise<ActionResult> {
   if (authError || !user) return { success: false, error: "You must be logged in." };
 
   const defaults = [
-    { name: "Full Groom", default_price: 65, sort_order: 0 },
-    { name: "Bath & Brush", default_price: 40, sort_order: 1 },
-    { name: "Nail Trim", default_price: 15, sort_order: 2 },
-    { name: "De-shedding", default_price: 50, sort_order: 3 },
-    { name: "Puppy Cut", default_price: 45, sort_order: 4 },
-    { name: "Teeth Cleaning", default_price: 25, sort_order: 5 },
+    { name: "Full Groom", default_price: 65, default_duration: 60, sort_order: 0 },
+    { name: "Bath & Brush", default_price: 40, default_duration: 45, sort_order: 1 },
+    { name: "Nail Trim", default_price: 15, default_duration: 15, sort_order: 2 },
+    { name: "De-shedding", default_price: 50, default_duration: 45, sort_order: 3 },
+    { name: "Puppy Cut", default_price: 45, default_duration: 45, sort_order: 4 },
+    { name: "Teeth Cleaning", default_price: 25, default_duration: 20, sort_order: 5 },
   ];
 
   const { error: insertError } = await supabase.from("service_presets").insert(

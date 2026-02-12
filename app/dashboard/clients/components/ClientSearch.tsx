@@ -17,6 +17,7 @@ type VisitRecord = {
   price: number;
   completedAt: string;
   notes: string | null;
+  duration: number;
 };
 
 type ClientData = {
@@ -31,7 +32,7 @@ type ClientData = {
   visits: VisitRecord[];
 };
 
-type ServicePreset = { name: string; defaultPrice: number };
+type ServicePreset = { name: string; defaultPrice: number; defaultDuration: number };
 
 export default function ClientSearch({ clients, servicePresets = [] }: { clients: ClientData[]; servicePresets?: ServicePreset[] }) {
   const [query, setQuery] = useState("");

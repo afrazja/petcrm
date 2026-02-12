@@ -19,6 +19,7 @@ type Appointment = {
   price: number;
   completedAt: string;
   notes: string | null;
+  duration: number;
   petName: string;
   petBreed: string | null;
   ownerName: string;
@@ -190,10 +191,10 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
           ) : (
             <div className="space-y-3">
               {selectedAppointments.map((appt) => {
-                const time = new Date(appt.completedAt).toLocaleTimeString(
-                  "en-US",
-                  { hour: "numeric", minute: "2-digit", hour12: true }
-                );
+                const startDate = new Date(appt.completedAt);
+                const endDate = new Date(startDate.getTime() + (appt.duration || 60) * 60 * 1000);
+                const startTime = startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+                const endTime = endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
                 const isDeleting = deleteConfirmId === appt.id;
                 const isRescheduling = rescheduleId === appt.id;
 
@@ -221,12 +222,15 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
                           <DollarIcon className="w-3.5 h-3.5" />
                           ${appt.price.toFixed(2)}
                         </div>
-                        <p className="text-xs text-sage-400 mt-0.5">{time}</p>
+                        <p className="text-xs text-sage-400 mt-0.5">{startTime} - {endTime}</p>
                       </div>
                     </div>
                     <div className="mt-2 flex items-center gap-1.5 text-sm text-sage-500">
                       <ScissorsIcon className="w-3.5 h-3.5" />
                       {appt.service}
+                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-sage-50 text-sage-400 rounded-full">
+                        {appt.duration || 60}min
+                      </span>
                     </div>
                     {appt.notes && (
                       <p className="mt-1.5 text-xs text-sage-400 italic">

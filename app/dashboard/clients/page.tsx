@@ -31,6 +31,7 @@ export default async function ClientsPage() {
     price: number;
     completed_at: string;
     notes: string | null;
+    duration: number | null;
     pets: { name: string } | null;
   }[] = [];
 
@@ -38,7 +39,7 @@ export default async function ClientsPage() {
     const { data, error } = await supabase
       .from("appointments")
       .select(
-        "id, client_id, pet_id, service, price, completed_at, notes, pets ( name )"
+        "id, client_id, pet_id, service, price, completed_at, notes, duration, pets ( name )"
       )
       .order("completed_at", { ascending: false });
 
@@ -62,6 +63,7 @@ export default async function ClientsPage() {
         price: number;
         completedAt: string;
         notes: string | null;
+        duration: number;
       }[];
     }
   >();
@@ -76,6 +78,7 @@ export default async function ClientsPage() {
       price: Number(appt.price) || 0,
       completedAt: appt.completed_at,
       notes: appt.notes,
+      duration: Number(appt.duration) || 60,
     };
 
     const existing = appointmentsByClient.get(appt.client_id);
@@ -94,12 +97,13 @@ export default async function ClientsPage() {
   // Fetch service presets for the log visit modal
   const { data: presets } = await supabase
     .from("service_presets")
-    .select("name, default_price")
+    .select("name, default_price, default_duration")
     .order("sort_order", { ascending: true });
 
   const servicePresets = (presets ?? []).map((p) => ({
     name: p.name as string,
     defaultPrice: Number(p.default_price) || 0,
+    defaultDuration: Number((p as unknown as { default_duration: number }).default_duration) || 60,
   }));
 
   const formattedClients = (clients ?? []).map((client) => {

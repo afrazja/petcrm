@@ -14,6 +14,7 @@ type Preset = {
   id: string;
   name: string;
   defaultPrice: number;
+  defaultDuration: number;
   sortOrder: number;
 };
 
@@ -26,17 +27,20 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editPrice, setEditPrice] = useState("");
+  const [editDuration, setEditDuration] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Add form state
   const [newName, setNewName] = useState("");
   const [newPrice, setNewPrice] = useState("");
+  const [newDuration, setNewDuration] = useState("60");
 
   function startEdit(preset: Preset) {
     setEditingId(preset.id);
     setEditName(preset.name);
     setEditPrice(preset.defaultPrice.toString());
+    setEditDuration(preset.defaultDuration.toString());
     setError(null);
   }
 
@@ -44,6 +48,7 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
     setEditingId(null);
     setEditName("");
     setEditPrice("");
+    setEditDuration("");
     setError(null);
   }
 
@@ -54,6 +59,7 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
     const formData = new FormData();
     formData.set("name", newName.trim());
     formData.set("defaultPrice", newPrice || "0");
+    formData.set("defaultDuration", newDuration || "60");
 
     startTransition(async () => {
       const result = await addServicePreset(formData);
@@ -65,11 +71,13 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
             id: crypto.randomUUID(), // temp ID, will be replaced on next server fetch
             name: newName.trim(),
             defaultPrice: parseFloat(newPrice) || 0,
+            defaultDuration: parseInt(newDuration) || 60,
             sortOrder: prev.length,
           },
         ]);
         setNewName("");
         setNewPrice("");
+        setNewDuration("60");
       } else {
         setError(result.error ?? "Failed to add.");
       }
@@ -84,6 +92,7 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
     formData.set("id", presetId);
     formData.set("name", editName.trim());
     formData.set("defaultPrice", editPrice || "0");
+    formData.set("defaultDuration", editDuration || "60");
 
     startTransition(async () => {
       const result = await editServicePreset(formData);
@@ -91,7 +100,7 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
         setPresets((prev) =>
           prev.map((p) =>
             p.id === presetId
-              ? { ...p, name: editName.trim(), defaultPrice: parseFloat(editPrice) || 0 }
+              ? { ...p, name: editName.trim(), defaultPrice: parseFloat(editPrice) || 0, defaultDuration: parseInt(editDuration) || 60 }
               : p
           )
         );
@@ -121,18 +130,19 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
       if (result.success) {
         // Reload will happen via revalidation, but optimistically add them
         const defaults = [
-          { name: "Full Groom", defaultPrice: 65 },
-          { name: "Bath & Brush", defaultPrice: 40 },
-          { name: "Nail Trim", defaultPrice: 15 },
-          { name: "De-shedding", defaultPrice: 50 },
-          { name: "Puppy Cut", defaultPrice: 45 },
-          { name: "Teeth Cleaning", defaultPrice: 25 },
+          { name: "Full Groom", defaultPrice: 65, defaultDuration: 60 },
+          { name: "Bath & Brush", defaultPrice: 40, defaultDuration: 45 },
+          { name: "Nail Trim", defaultPrice: 15, defaultDuration: 15 },
+          { name: "De-shedding", defaultPrice: 50, defaultDuration: 45 },
+          { name: "Puppy Cut", defaultPrice: 45, defaultDuration: 45 },
+          { name: "Teeth Cleaning", defaultPrice: 25, defaultDuration: 20 },
         ];
         setPresets(
           defaults.map((d, i) => ({
             id: crypto.randomUUID(),
             name: d.name,
             defaultPrice: d.defaultPrice,
+            defaultDuration: d.defaultDuration,
             sortOrder: i,
           }))
         );
@@ -202,6 +212,17 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
                         className="w-full pl-6 pr-2 py-2 text-sm rounded-lg border border-warm-gray bg-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300"
                       />
                     </div>
+                    <div className="relative w-20">
+                      <input
+                        type="number"
+                        value={editDuration}
+                        onChange={(e) => setEditDuration(e.target.value)}
+                        min="5"
+                        step="5"
+                        className="w-full pl-2 pr-8 py-2 text-sm rounded-lg border border-warm-gray bg-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sage-400 text-xs">min</span>
+                    </div>
                     <button
                       onClick={() => handleSaveEdit(preset.id)}
                       disabled={isPending}
@@ -224,6 +245,9 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
                     </span>
                     <span className="text-sm text-sage-500 font-medium">
                       ${preset.defaultPrice.toFixed(2)}
+                    </span>
+                    <span className="text-xs text-sage-400 font-medium">
+                      {preset.defaultDuration}min
                     </span>
                     <button
                       onClick={() => startEdit(preset)}
@@ -279,6 +303,24 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
                 }
               }}
             />
+          </div>
+          <div className="relative w-20">
+            <input
+              type="number"
+              value={newDuration}
+              onChange={(e) => setNewDuration(e.target.value)}
+              placeholder="60"
+              min="5"
+              step="5"
+              className="w-full pl-2 pr-8 py-2.5 text-sm rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAdd();
+                }
+              }}
+            />
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sage-400 text-xs">min</span>
           </div>
           <button
             onClick={handleAdd}

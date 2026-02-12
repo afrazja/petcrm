@@ -25,6 +25,7 @@ export default async function AppointmentsPage({
     price: number;
     completedAt: string;
     notes: string | null;
+    duration: number;
     petName: string;
     petBreed: string | null;
     ownerName: string;
@@ -41,6 +42,7 @@ export default async function AppointmentsPage({
         price,
         completed_at,
         notes,
+        duration,
         pets!inner ( id, name, breed, clients!inner ( full_name, phone ) )
       `
       )
@@ -61,6 +63,7 @@ export default async function AppointmentsPage({
         price: Number(appt.price) || 0,
         completedAt: appt.completed_at,
         notes: appt.notes,
+        duration: Number(appt.duration) || 60,
         petName: pet.name,
         petBreed: pet.breed,
         ownerName: pet.clients?.full_name ?? "Unknown",
@@ -87,12 +90,13 @@ export default async function AppointmentsPage({
   // Fetch service presets for the add appointment modal
   const { data: presets } = await supabase
     .from("service_presets")
-    .select("name, default_price")
+    .select("name, default_price, default_duration")
     .order("sort_order", { ascending: true });
 
   const servicePresets = (presets ?? []).map((p) => ({
     name: p.name as string,
     defaultPrice: Number(p.default_price) || 0,
+    defaultDuration: Number((p as unknown as { default_duration: number }).default_duration) || 60,
   }));
 
   return (

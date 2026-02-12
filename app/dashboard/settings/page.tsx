@@ -13,7 +13,7 @@ export default async function SettingsPage() {
 
   const { data: presets } = await supabase
     .from("service_presets")
-    .select("id, name, default_price, sort_order")
+    .select("id, name, default_price, default_duration, sort_order")
     .eq("profile_id", user.id)
     .order("sort_order", { ascending: true });
 
@@ -21,6 +21,7 @@ export default async function SettingsPage() {
     id: p.id as string,
     name: p.name as string,
     defaultPrice: Number(p.default_price),
+    defaultDuration: Number((p as unknown as { default_duration: number }).default_duration) || 60,
     sortOrder: p.sort_order as number,
   }));
 
