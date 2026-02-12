@@ -322,8 +322,8 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
                   </div>
                 </div>
               ) : (
-                <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
-                  {/* Use on Map button (mobile fallback for drag) */}
+                <div className="absolute top-1.5 right-1.5 flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all z-10">
+                  {/* Use on Map button — always visible on mobile, hover on desktop */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -348,7 +348,7 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
                 </div>
               )}
 
-              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/40 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/40 to-transparent p-1.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 <p className="text-[10px] text-white text-center">
                   {new Date(photo.createdAt).toLocaleDateString("en-US", {
                     month: "short",
