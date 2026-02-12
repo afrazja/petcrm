@@ -905,6 +905,43 @@ export async function rescheduleAppointment(
   return { success: true };
 }
 
+export async function editAppointment(
+  appointmentId: string,
+  data: {
+    scheduledAt: string;
+    service: string;
+    price: number;
+    duration: number;
+    notes: string | null;
+  }
+): Promise<ActionResult> {
+  if (!data.scheduledAt) return { success: false, error: "Date is required." };
+  if (!data.service.trim()) return { success: false, error: "Service is required." };
+
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const { error: updateError } = await supabase
+    .from("appointments")
+    .update({
+      completed_at: new Date(data.scheduledAt).toISOString(),
+      service: data.service.trim(),
+      price: data.price,
+      duration: data.duration || 60,
+      notes: data.notes?.trim() || null,
+    })
+    .eq("id", appointmentId);
+
+  if (updateError) return { success: false, error: "Failed to update appointment." };
+
+  revalidatePath("/dashboard/appointments");
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard/pets");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
 export async function updateAppointmentStatus(
   appointmentId: string,
   status: "scheduled" | "completed" | "no-show"

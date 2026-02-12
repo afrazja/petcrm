@@ -118,6 +118,7 @@ export default async function AppointmentsPage({
         appointments={formattedAppointments}
         month={month}
         year={year}
+        servicePresets={servicePresets}
       />
 
       <AddAppointmentModal pets={petOptions} servicePresets={servicePresets} />

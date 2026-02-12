@@ -11,7 +11,7 @@ import {
   CalendarIcon,
   XIcon,
 } from "@/components/icons";
-import { deleteAppointment, rescheduleAppointment, updateAppointmentStatus } from "@/app/dashboard/actions";
+import { deleteAppointment, editAppointment, updateAppointmentStatus } from "@/app/dashboard/actions";
 
 type Appointment = {
   id: string;
@@ -33,10 +33,13 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
   "no-show": { label: "No-Show", bg: "bg-red-50", text: "text-red-600", dot: "bg-red-400" },
 };
 
+type ServicePreset = { name: string; defaultPrice: number; defaultDuration: number };
+
 type Props = {
   appointments: Appointment[];
   month: number; // 0-indexed
   year: number;
+  servicePresets?: ServicePreset[];
 };
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -50,11 +53,15 @@ function formatDateTimeLocal(dateStr: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-export default function AppointmentsCalendar({ appointments, month, year }: Props) {
+export default function AppointmentsCalendar({ appointments, month, year, servicePresets = [] }: Props) {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
-  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editService, setEditService] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editDuration, setEditDuration] = useState("");
+  const [editNotes, setEditNotes] = useState("");
   const [isPending, startTransition] = useTransition();
 
   // Group appointments by day
@@ -96,13 +103,32 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
     });
   }
 
-  function handleReschedule(appointmentId: string) {
-    if (!rescheduleDate) return;
+  function handleEdit(appointmentId: string) {
+    if (!editDate || !editService.trim()) return;
     startTransition(async () => {
-      await rescheduleAppointment(appointmentId, rescheduleDate);
-      setRescheduleId(null);
-      setRescheduleDate("");
+      await editAppointment(appointmentId, {
+        scheduledAt: editDate,
+        service: editService,
+        price: parseFloat(editPrice) || 0,
+        duration: parseInt(editDuration) || 60,
+        notes: editNotes || null,
+      });
+      setEditId(null);
     });
+  }
+
+  function openEdit(appt: Appointment) {
+    setEditId(appt.id);
+    setEditDate(formatDateTimeLocal(appt.completedAt));
+    setEditService(appt.service);
+    setEditPrice(String(appt.price));
+    setEditDuration(String(appt.duration || 60));
+    setEditNotes(appt.notes ?? "");
+    setDeleteConfirmId(null);
+  }
+
+  function closeEdit() {
+    setEditId(null);
   }
 
   function handleStatusChange(appointmentId: string, status: "scheduled" | "completed" | "no-show") {
@@ -216,7 +242,7 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
                 const startTime = startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
                 const endTime = endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
                 const isDeleting = deleteConfirmId === appt.id;
-                const isRescheduling = rescheduleId === appt.id;
+                const isEditing = editId === appt.id;
 
                 return (
                   <div
@@ -268,7 +294,7 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
                     )}
 
                     {/* Status + Action buttons */}
-                    {!isDeleting && !isRescheduling && (
+                    {!isDeleting && !isEditing && (
                       <div className="mt-3 pt-3 border-t border-warm-gray/30 space-y-2">
                         {/* Status buttons */}
                         <div className="flex items-center gap-1.5">
@@ -295,20 +321,16 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
                         {/* Action buttons */}
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => {
-                              setRescheduleId(appt.id);
-                              setRescheduleDate(formatDateTimeLocal(appt.completedAt));
-                              setDeleteConfirmId(null);
-                            }}
+                            onClick={() => openEdit(appt)}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sage-500 hover:text-sage-700 border border-warm-gray/50 hover:border-sage-300 rounded-lg transition-colors"
                           >
                             <CalendarIcon className="w-3.5 h-3.5" />
-                            Reschedule
+                            Edit
                           </button>
                           <button
                             onClick={() => {
                               setDeleteConfirmId(appt.id);
-                              setRescheduleId(null);
+                              setEditId(null);
                             }}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sage-400 hover:text-red-500 border border-warm-gray/50 hover:border-red-200 rounded-lg transition-colors"
                           >
@@ -343,33 +365,101 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
                       </div>
                     )}
 
-                    {/* Reschedule form */}
-                    {isRescheduling && (
+                    {/* Edit form */}
+                    {isEditing && (
                       <div className="mt-3 pt-3 border-t border-warm-gray/30">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm font-medium text-sage-700">Reschedule to:</p>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-medium text-sage-700">Edit Appointment</p>
                           <button
-                            onClick={() => {
-                              setRescheduleId(null);
-                              setRescheduleDate("");
-                            }}
+                            onClick={closeEdit}
                             className="p-1 text-sage-400 hover:text-sage-600 transition-colors"
                           >
                             <XIcon className="w-4 h-4" />
                           </button>
                         </div>
-                        <input
-                          type="datetime-local"
-                          value={rescheduleDate}
-                          onChange={(e) => setRescheduleDate(e.target.value)}
-                          className="w-full px-3 py-2.5 text-sm rounded-lg border border-warm-gray bg-soft-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors mb-2"
-                        />
+                        <div className="space-y-2">
+                          <div>
+                            <label className="text-xs text-sage-400 mb-0.5 block">Date & Time</label>
+                            <input
+                              type="datetime-local"
+                              value={editDate}
+                              onChange={(e) => setEditDate(e.target.value)}
+                              className="w-full px-3 py-2 text-sm rounded-lg border border-warm-gray bg-soft-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-sage-400 mb-0.5 block">Service</label>
+                            {servicePresets.length > 0 ? (
+                              <select
+                                value={servicePresets.some((p) => p.name === editService) ? editService : "__custom__"}
+                                onChange={(e) => {
+                                  if (e.target.value === "__custom__") return;
+                                  const preset = servicePresets.find((p) => p.name === e.target.value);
+                                  if (preset) {
+                                    setEditService(preset.name);
+                                    setEditPrice(String(preset.defaultPrice));
+                                    setEditDuration(String(preset.defaultDuration));
+                                  }
+                                }}
+                                className="w-full px-3 py-2 text-sm rounded-lg border border-warm-gray bg-soft-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                              >
+                                {!servicePresets.some((p) => p.name === editService) && (
+                                  <option value="__custom__">{editService}</option>
+                                )}
+                                {servicePresets.map((p) => (
+                                  <option key={p.name} value={p.name}>{p.name}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                value={editService}
+                                onChange={(e) => setEditService(e.target.value)}
+                                className="w-full px-3 py-2 text-sm rounded-lg border border-warm-gray bg-soft-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                              />
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-sage-400 mb-0.5 block">Price ($)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={editPrice}
+                                onChange={(e) => setEditPrice(e.target.value)}
+                                className="w-full px-3 py-2 text-sm rounded-lg border border-warm-gray bg-soft-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-sage-400 mb-0.5 block">Duration (min)</label>
+                              <input
+                                type="number"
+                                min="5"
+                                step="5"
+                                value={editDuration}
+                                onChange={(e) => setEditDuration(e.target.value)}
+                                className="w-full px-3 py-2 text-sm rounded-lg border border-warm-gray bg-soft-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-sage-400 mb-0.5 block">Notes</label>
+                            <input
+                              type="text"
+                              value={editNotes}
+                              onChange={(e) => setEditNotes(e.target.value)}
+                              placeholder="Optional notes..."
+                              className="w-full px-3 py-2 text-sm rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                            />
+                          </div>
+                        </div>
                         <button
-                          onClick={() => handleReschedule(appt.id)}
-                          disabled={isPending || !rescheduleDate}
-                          className="w-full py-2 text-sm font-medium text-white bg-sage-400 rounded-lg hover:bg-sage-500 transition-colors disabled:opacity-50"
+                          onClick={() => handleEdit(appt.id)}
+                          disabled={isPending || !editDate || !editService.trim()}
+                          className="w-full mt-3 py-2 text-sm font-medium text-white bg-sage-400 rounded-lg hover:bg-sage-500 transition-colors disabled:opacity-50 cursor-pointer"
                         >
-                          {isPending ? "Saving..." : "Confirm Reschedule"}
+                          {isPending ? "Saving..." : "Save Changes"}
                         </button>
                       </div>
                     )}
