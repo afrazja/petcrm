@@ -260,6 +260,17 @@ export default async function DashboardPage() {
     // vaccine query failed — that's fine
   }
 
+  // Fetch service presets for QuickCheckIn
+  const { data: presetRows } = await supabase
+    .from("service_presets")
+    .select("name, default_price")
+    .order("sort_order", { ascending: true });
+
+  const servicePresets = (presetRows ?? []).map((p) => ({
+    name: p.name as string,
+    defaultPrice: Number(p.default_price),
+  }));
+
   const stats = [
     {
       label: "Today's Check-Ins",
@@ -371,7 +382,7 @@ export default async function DashboardPage() {
       <TodaysPetsList pets={formattedPets} />
 
       {/* Quick Check-In FAB + Modal */}
-      <QuickCheckIn />
+      <QuickCheckIn servicePresets={servicePresets} />
     </div>
   );
 }

@@ -88,6 +88,17 @@ export default async function ClientsPage() {
     }
   }
 
+  // Fetch service presets for the log visit modal
+  const { data: presets } = await supabase
+    .from("service_presets")
+    .select("name, default_price")
+    .order("sort_order", { ascending: true });
+
+  const servicePresets = (presets ?? []).map((p) => ({
+    name: p.name as string,
+    defaultPrice: Number(p.default_price) || 0,
+  }));
+
   const formattedClients = (clients ?? []).map((client) => {
     const pets =
       (client.pets as unknown as {
@@ -149,7 +160,7 @@ export default async function ClientsPage() {
         </p>
       </div>
 
-      <ClientSearch clients={formattedClients} />
+      <ClientSearch clients={formattedClients} servicePresets={servicePresets} />
 
       <AddClientModal />
     </div>

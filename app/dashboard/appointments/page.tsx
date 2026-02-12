@@ -84,6 +84,17 @@ export default async function AppointmentsPage({
       (pet.clients as unknown as { full_name: string })?.full_name ?? "Unknown",
   }));
 
+  // Fetch service presets for the add appointment modal
+  const { data: presets } = await supabase
+    .from("service_presets")
+    .select("name, default_price")
+    .order("sort_order", { ascending: true });
+
+  const servicePresets = (presets ?? []).map((p) => ({
+    name: p.name as string,
+    defaultPrice: Number(p.default_price) || 0,
+  }));
+
   return (
     <div>
       <div className="mb-8">
@@ -102,7 +113,7 @@ export default async function AppointmentsPage({
         year={year}
       />
 
-      <AddAppointmentModal pets={petOptions} />
+      <AddAppointmentModal pets={petOptions} servicePresets={servicePresets} />
     </div>
   );
 }

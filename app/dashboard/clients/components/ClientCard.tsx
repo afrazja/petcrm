@@ -30,6 +30,8 @@ type VisitRecord = {
   completedAt: string;
 };
 
+type ServicePreset = { name: string; defaultPrice: number };
+
 type ClientCardProps = {
   id: string;
   fullName: string;
@@ -40,6 +42,7 @@ type ClientCardProps = {
   lastVisit: string | null;
   totalSpent: number;
   visits: VisitRecord[];
+  servicePresets?: ServicePreset[];
 };
 
 export default function ClientCard({
@@ -52,6 +55,7 @@ export default function ClientCard({
   lastVisit,
   totalSpent,
   visits,
+  servicePresets = [],
 }: ClientCardProps) {
   const [showModal, setShowModal] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -243,6 +247,7 @@ export default function ClientCard({
           clientId={id}
           clientName={fullName}
           pets={pets}
+          servicePresets={servicePresets}
           onClose={() => setShowModal(false)}
         />
       )}

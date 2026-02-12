@@ -12,18 +12,12 @@ type PetOption = {
   ownerName: string;
 };
 
+type ServicePreset = { name: string; defaultPrice: number };
+
 type Props = {
   pets: PetOption[];
+  servicePresets?: ServicePreset[];
 };
-
-const SERVICE_PRESETS = [
-  "Full Groom",
-  "Bath & Brush",
-  "Nail Trim",
-  "De-shedding",
-  "Puppy Cut",
-  "Teeth Cleaning",
-];
 
 function getSixWeeksFrom(dateStr: string): string {
   const d = new Date(dateStr);
@@ -37,11 +31,12 @@ function getSixWeeksFrom(dateStr: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-export default function AddAppointmentModal({ pets }: Props) {
+export default function AddAppointmentModal({ pets, servicePresets = [] }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [service, setService] = useState("");
+  const [price, setPrice] = useState("");
 
   // Rebook state
   const [rebookData, setRebookData] = useState<ActionResultWithRebook["rebookData"] | null>(null);
@@ -64,14 +59,16 @@ export default function AddAppointmentModal({ pets }: Props) {
     setIsOpen(false);
     setError(null);
     setService("");
+    setPrice("");
     setRebookData(null);
     setRebookSuccess(false);
     setOriginalDate("");
   }
 
   function handleSubmit(formData: FormData) {
-    // Inject the service value (since presets control it via state)
+    // Inject the service and price values (since presets control them via state)
     formData.set("service", service);
+    if (price) formData.set("price", price);
     const scheduledAt = formData.get("scheduledAt") as string;
     startTransition(async () => {
       const result = await addAppointment(formData);
@@ -266,22 +263,28 @@ export default function AddAppointmentModal({ pets }: Props) {
                   <label className="block text-sm font-medium text-sage-700 mb-1.5">
                     Service
                   </label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {SERVICE_PRESETS.map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        onClick={() => setService(preset)}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
-                          service === preset
-                            ? "bg-sage-400 text-white border-sage-400"
-                            : "bg-white text-sage-600 border-warm-gray hover:border-sage-300"
-                        }`}
-                      >
-                        {preset}
-                      </button>
-                    ))}
-                  </div>
+                  {servicePresets.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {servicePresets.map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => {
+                            setService(preset.name);
+                            setPrice(preset.defaultPrice.toString());
+                          }}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                            service === preset.name
+                              ? "bg-sage-400 text-white border-sage-400"
+                              : "bg-white text-sage-600 border-warm-gray hover:border-sage-300"
+                          }`}
+                        >
+                          {preset.name}
+                          <span className="ml-1 opacity-70">${preset.defaultPrice}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <input
                     type="text"
                     value={service}
@@ -307,6 +310,8 @@ export default function AddAppointmentModal({ pets }: Props) {
                       inputMode="decimal"
                       step="0.01"
                       min="0"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
                       placeholder="0.00"
                       className="w-full pl-8 pr-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
                     />

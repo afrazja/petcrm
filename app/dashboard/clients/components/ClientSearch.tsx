@@ -30,7 +30,9 @@ type ClientData = {
   visits: VisitRecord[];
 };
 
-export default function ClientSearch({ clients }: { clients: ClientData[] }) {
+type ServicePreset = { name: string; defaultPrice: number };
+
+export default function ClientSearch({ clients, servicePresets = [] }: { clients: ClientData[]; servicePresets?: ServicePreset[] }) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -112,6 +114,7 @@ export default function ClientSearch({ clients }: { clients: ClientData[] }) {
               lastVisit={client.lastVisit}
               totalSpent={client.totalSpent}
               visits={client.visits}
+              servicePresets={servicePresets}
             />
           ))}
         </div>

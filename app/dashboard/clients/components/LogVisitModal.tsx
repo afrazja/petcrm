@@ -9,26 +9,21 @@ type PetOption = {
   name: string;
 };
 
+type ServicePreset = { name: string; defaultPrice: number };
+
 type LogVisitModalProps = {
   clientId: string;
   clientName: string;
   pets: PetOption[];
+  servicePresets?: ServicePreset[];
   onClose: () => void;
 };
-
-const SERVICE_PRESETS = [
-  "Full Groom",
-  "Bath & Brush",
-  "Nail Trim",
-  "De-shedding",
-  "Puppy Cut",
-  "Teeth Cleaning",
-];
 
 export default function LogVisitModal({
   clientId,
   clientName,
   pets,
+  servicePresets = [],
   onClose,
 }: LogVisitModalProps) {
   const [selectedPetId, setSelectedPetId] = useState(pets[0]?.id ?? "");
@@ -133,22 +128,28 @@ export default function LogVisitModal({
             <label className="block text-sm font-medium text-sage-600 mb-1.5">
               Service
             </label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {SERVICE_PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setService(preset)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
-                    service === preset
-                      ? "bg-sage-400 text-white border-sage-400"
-                      : "bg-white text-sage-600 border-warm-gray hover:border-sage-300"
-                  }`}
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
+            {servicePresets.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {servicePresets.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => {
+                      setService(preset.name);
+                      setPrice(preset.defaultPrice.toString());
+                    }}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                      service === preset.name
+                        ? "bg-sage-400 text-white border-sage-400"
+                        : "bg-white text-sage-600 border-warm-gray hover:border-sage-300"
+                    }`}
+                  >
+                    {preset.name}
+                    <span className="ml-1 opacity-70">${preset.defaultPrice}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <input
               type="text"
               value={service}

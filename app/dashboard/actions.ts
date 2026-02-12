@@ -131,14 +131,17 @@ export async function quickCheckIn(formData: FormData): Promise<ActionResultWith
   }
 
   // Always log a visit (appointment) for this check-in
+  const service = (formData.get("service") as string)?.trim() || "Grooming";
+  const checkInPrice = parseFloat((formData.get("price") as string) || "0") || 0;
+
   const { error: appointmentError } = await supabase
     .from("appointments")
     .insert({
       pet_id: petId,
       client_id: clientId,
       profile_id: user.id,
-      service: "Grooming",
-      price: 0,
+      service,
+      price: checkInPrice,
     });
 
   if (appointmentError) {
@@ -153,7 +156,7 @@ export async function quickCheckIn(formData: FormData): Promise<ActionResultWith
       petId,
       petName,
       clientId,
-      service: "Grooming",
+      service,
     },
   };
 }
@@ -696,5 +699,109 @@ export async function deletePetPhoto(photoId: string, petId: string): Promise<Ac
   if (deleteError2) return { success: false, error: "Failed to delete photo." };
 
   revalidatePath(`/dashboard/pets/${petId}`);
+  return { success: true };
+}
+
+// ── Service Presets ──────────────────────────────────────────────────
+
+export async function addServicePreset(formData: FormData): Promise<ActionResult> {
+  const name = (formData.get("name") as string)?.trim();
+  const priceStr = (formData.get("defaultPrice") as string)?.trim();
+
+  if (!name) return { success: false, error: "Service name is required." };
+  const defaultPrice = priceStr ? parseFloat(priceStr) : 0;
+
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  // Get next sort order
+  const { data: existing } = await supabase
+    .from("service_presets")
+    .select("sort_order")
+    .eq("profile_id", user.id)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  const nextOrder = existing && existing.length > 0 ? existing[0].sort_order + 1 : 0;
+
+  const { error: insertError } = await supabase.from("service_presets").insert({
+    profile_id: user.id,
+    name,
+    default_price: defaultPrice,
+    sort_order: nextOrder,
+  });
+
+  if (insertError) return { success: false, error: "Failed to add service." };
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function editServicePreset(formData: FormData): Promise<ActionResult> {
+  const id = (formData.get("id") as string)?.trim();
+  const name = (formData.get("name") as string)?.trim();
+  const priceStr = (formData.get("defaultPrice") as string)?.trim();
+
+  if (!id) return { success: false, error: "Preset ID is missing." };
+  if (!name) return { success: false, error: "Service name is required." };
+  const defaultPrice = priceStr ? parseFloat(priceStr) : 0;
+
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const { error: updateError } = await supabase
+    .from("service_presets")
+    .update({ name, default_price: defaultPrice })
+    .eq("id", id);
+
+  if (updateError) return { success: false, error: "Failed to update service." };
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function deleteServicePreset(id: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const { error: deleteError } = await supabase
+    .from("service_presets")
+    .delete()
+    .eq("id", id);
+
+  if (deleteError) return { success: false, error: "Failed to delete service." };
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function importDefaultPresets(): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const defaults = [
+    { name: "Full Groom", default_price: 65, sort_order: 0 },
+    { name: "Bath & Brush", default_price: 40, sort_order: 1 },
+    { name: "Nail Trim", default_price: 15, sort_order: 2 },
+    { name: "De-shedding", default_price: 50, sort_order: 3 },
+    { name: "Puppy Cut", default_price: 45, sort_order: 4 },
+    { name: "Teeth Cleaning", default_price: 25, sort_order: 5 },
+  ];
+
+  const { error: insertError } = await supabase.from("service_presets").insert(
+    defaults.map((d) => ({ ...d, profile_id: user.id }))
+  );
+
+  if (insertError) return { success: false, error: "Failed to import defaults." };
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
   return { success: true };
 }
