@@ -362,11 +362,6 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
           </div>
           <div className="flex items-center gap-2">
             {markers.length > 0 && (
-              <span className="text-xs bg-sage-50 text-sage-600 px-2.5 py-1 rounded-full font-medium">
-                {markers.length} marker{markers.length !== 1 ? "s" : ""}
-              </span>
-            )}
-            {markers.length > 0 && (
               <button
                 onClick={saveToGallery}
                 disabled={isSaving}
@@ -586,35 +581,6 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
         />
       )}
 
-      {/* Marker legend */}
-      {markers.length > 0 && (
-        <div className="mt-4 bg-white rounded-2xl shadow-sm border border-warm-gray/50 p-4 sm:p-6">
-          <h4 className="text-sm font-semibold text-sage-600 mb-3">
-            Markers
-          </h4>
-          <div className="space-y-2">
-            {markers.map((marker) => (
-              <button
-                key={marker.id}
-                onClick={() =>
-                  setSelectedMarkerId((prev) =>
-                    prev === marker.id ? null : marker.id
-                  )
-                }
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-sage-50 transition-colors"
-              >
-                <span className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0" />
-                <span className="text-sm text-sage-700 truncate flex-1">
-                  {marker.note || "No note"}
-                </span>
-                <span className="text-xs text-sage-400 flex-shrink-0">
-                  {new Date(marker.created_at).toLocaleDateString()}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
