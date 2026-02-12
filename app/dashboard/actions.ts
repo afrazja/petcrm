@@ -596,3 +596,105 @@ export async function addPet(formData: FormData): Promise<ActionResult> {
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+export async function uploadPetPhoto(
+  petId: string,
+  formData: FormData
+): Promise<ActionResult & { photo?: { id: string; url: string; createdAt: string } }> {
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    return { success: false, error: "No file selected." };
+  }
+
+  // Validate file type
+  if (!file.type.startsWith("image/")) {
+    return { success: false, error: "Only image files are allowed." };
+  }
+
+  // Limit to 5 MB
+  if (file.size > 5 * 1024 * 1024) {
+    return { success: false, error: "Image must be under 5 MB." };
+  }
+
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  // Generate unique filename
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const fileName = `${crypto.randomUUID()}.${ext}`;
+  const storagePath = `${user.id}/${petId}/${fileName}`;
+
+  // Upload to Supabase Storage
+  const { error: uploadError } = await supabase.storage
+    .from("pet-photos")
+    .upload(storagePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    return { success: false, error: "Failed to upload photo." };
+  }
+
+  // Insert record in pet_photos table
+  const { data: photoRecord, error: insertError2 } = await supabase
+    .from("pet_photos")
+    .insert({
+      pet_id: petId,
+      profile_id: user.id,
+      storage_path: storagePath,
+    })
+    .select("id, created_at")
+    .single();
+
+  if (insertError2 || !photoRecord) {
+    // Clean up the uploaded file if DB insert fails
+    await supabase.storage.from("pet-photos").remove([storagePath]);
+    return { success: false, error: "Failed to save photo record." };
+  }
+
+  // Build public URL
+  const { data: publicUrlData } = supabase.storage
+    .from("pet-photos")
+    .getPublicUrl(storagePath);
+
+  revalidatePath(`/dashboard/pets/${petId}`);
+  return {
+    success: true,
+    photo: {
+      id: photoRecord.id,
+      url: publicUrlData.publicUrl,
+      createdAt: photoRecord.created_at,
+    },
+  };
+}
+
+export async function deletePetPhoto(photoId: string, petId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  // Get the photo record to find storage path
+  const { data: photo } = await supabase
+    .from("pet_photos")
+    .select("storage_path")
+    .eq("id", photoId)
+    .single();
+
+  if (!photo) return { success: false, error: "Photo not found." };
+
+  // Delete from storage
+  await supabase.storage.from("pet-photos").remove([photo.storage_path]);
+
+  // Delete from database
+  const { error: deleteError2 } = await supabase
+    .from("pet_photos")
+    .delete()
+    .eq("id", photoId);
+
+  if (deleteError2) return { success: false, error: "Failed to delete photo." };
+
+  revalidatePath(`/dashboard/pets/${petId}`);
+  return { success: true };
+}

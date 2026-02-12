@@ -11,6 +11,7 @@ import type { HealthMapMarker } from "@/lib/types/database";
 import HealthMap from "./components/HealthMap";
 import EditPetModal from "./components/EditPetModal";
 import DeletePetButton from "./components/DeletePetButton";
+import PetPhotoGallery from "./components/PetPhotoGallery";
 
 export default async function PetProfilePage({
   params,
@@ -50,6 +51,24 @@ export default async function PetProfilePage({
 
   const markers: HealthMapMarker[] =
     (pet.health_map as HealthMapMarker[] | null) ?? [];
+
+  // Fetch photos for this pet
+  const { data: photoRecords } = await supabase
+    .from("pet_photos")
+    .select("id, storage_path, created_at")
+    .eq("pet_id", id)
+    .order("created_at", { ascending: false });
+
+  const photos = (photoRecords ?? []).map((p) => {
+    const { data: urlData } = supabase.storage
+      .from("pet-photos")
+      .getPublicUrl(p.storage_path);
+    return {
+      id: p.id as string,
+      url: urlData.publicUrl,
+      createdAt: p.created_at as string,
+    };
+  });
 
   // Calculate age from date_of_birth
   const dob = pet.date_of_birth ? new Date(pet.date_of_birth) : null;
@@ -235,6 +254,9 @@ export default async function PetProfilePage({
           <span className="text-sm font-normal">(No phone number)</span>
         </div>
       )}
+
+      {/* Photo Gallery */}
+      <PetPhotoGallery petId={pet.id} initialPhotos={photos} />
 
       {/* Health Map */}
       <HealthMap petId={pet.id} initialMarkers={markers} />
