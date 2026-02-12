@@ -9,6 +9,8 @@ import {
 } from "@/components/icons";
 import type { HealthMapMarker } from "@/lib/types/database";
 import HealthMap from "./components/HealthMap";
+import EditPetModal from "./components/EditPetModal";
+import DeletePetButton from "./components/DeletePetButton";
 
 export default async function PetProfilePage({
   params,
@@ -121,7 +123,19 @@ export default async function PetProfilePage({
             <PawPrintIcon className="w-7 h-7" />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold text-sage-800">{pet.name}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-sage-800">{pet.name}</h2>
+              <EditPetModal
+                pet={{
+                  id: pet.id,
+                  name: pet.name,
+                  breed: pet.breed,
+                  dateOfBirth: pet.date_of_birth,
+                  vaccineExpiryDate: pet.vaccine_expiry_date,
+                  notes: pet.notes,
+                }}
+              />
+            </div>
             {pet.breed && (
               <p className="text-sage-500 mt-0.5">{pet.breed}</p>
             )}
@@ -224,6 +238,11 @@ export default async function PetProfilePage({
 
       {/* Health Map */}
       <HealthMap petId={pet.id} initialMarkers={markers} />
+
+      {/* Delete Pet */}
+      <div className="mt-6">
+        <DeletePetButton petId={pet.id} petName={pet.name} />
+      </div>
     </div>
   );
 }

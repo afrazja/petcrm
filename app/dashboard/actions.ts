@@ -306,6 +306,152 @@ export async function addClient(formData: FormData): Promise<ActionResult> {
   return { success: true };
 }
 
+export async function editClient(formData: FormData): Promise<ActionResult> {
+  const clientId = (formData.get("clientId") as string)?.trim();
+  const fullName = (formData.get("fullName") as string)?.trim();
+  const phone = (formData.get("phone") as string)?.trim();
+  const email = (formData.get("email") as string)?.trim();
+  const notes = (formData.get("notes") as string)?.trim();
+
+  if (!clientId) return { success: false, error: "Client ID is missing." };
+  if (!fullName) return { success: false, error: "Full name is required." };
+
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const normalizedPhone = phone ? phone.replace(/\D/g, "") : null;
+
+  const { error: updateError } = await supabase
+    .from("clients")
+    .update({
+      full_name: fullName,
+      phone: normalizedPhone,
+      email: email || null,
+      notes: notes || null,
+    })
+    .eq("id", clientId);
+
+  if (updateError) return { success: false, error: "Failed to update client." };
+
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function editPet(formData: FormData): Promise<ActionResult> {
+  const petId = (formData.get("petId") as string)?.trim();
+  const name = (formData.get("name") as string)?.trim();
+  const breed = (formData.get("breed") as string)?.trim();
+  const dateOfBirth = (formData.get("dateOfBirth") as string)?.trim();
+  const vaccineExpiryDate = (formData.get("vaccineExpiryDate") as string)?.trim();
+  const notes = (formData.get("notes") as string)?.trim();
+
+  if (!petId) return { success: false, error: "Pet ID is missing." };
+  if (!name) return { success: false, error: "Pet name is required." };
+
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const { error: updateError } = await supabase
+    .from("pets")
+    .update({
+      name,
+      breed: breed || null,
+      date_of_birth: dateOfBirth || null,
+      vaccine_expiry_date: vaccineExpiryDate || null,
+      notes: notes || null,
+    })
+    .eq("id", petId);
+
+  if (updateError) return { success: false, error: "Failed to update pet." };
+
+  revalidatePath(`/dashboard/pets/${petId}`);
+  revalidatePath("/dashboard/pets");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function deleteClient(clientId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const { error: deleteError } = await supabase
+    .from("clients")
+    .delete()
+    .eq("id", clientId);
+
+  if (deleteError) return { success: false, error: "Failed to delete client." };
+
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard/pets");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function deletePet(petId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const { error: deleteError } = await supabase
+    .from("pets")
+    .delete()
+    .eq("id", petId);
+
+  if (deleteError) return { success: false, error: "Failed to delete pet." };
+
+  revalidatePath("/dashboard/pets");
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function addAppointment(formData: FormData): Promise<ActionResult> {
+  const petId = (formData.get("petId") as string)?.trim();
+  const service = (formData.get("service") as string)?.trim();
+  const priceStr = (formData.get("price") as string)?.trim();
+  const scheduledAt = (formData.get("scheduledAt") as string)?.trim();
+  const notes = (formData.get("notes") as string)?.trim();
+
+  if (!petId) return { success: false, error: "Please select a pet." };
+  if (!service) return { success: false, error: "Service is required." };
+  if (!scheduledAt) return { success: false, error: "Date and time are required." };
+
+  const price = priceStr ? parseFloat(priceStr) : 0;
+
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  // Get client_id from pet
+  const { data: pet } = await supabase
+    .from("pets")
+    .select("client_id")
+    .eq("id", petId)
+    .single();
+
+  if (!pet) return { success: false, error: "Pet not found." };
+
+  const { error: insertError } = await supabase.from("appointments").insert({
+    pet_id: petId,
+    client_id: pet.client_id,
+    profile_id: user.id,
+    service: service,
+    price,
+    completed_at: new Date(scheduledAt).toISOString(),
+    notes: notes || null,
+  });
+
+  if (insertError) return { success: false, error: "Failed to create appointment." };
+
+  revalidatePath("/dashboard/appointments");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
 export async function addPet(formData: FormData): Promise<ActionResult> {
   const petName = (formData.get("petName") as string)?.trim();
   const ownerName = (formData.get("ownerName") as string)?.trim();

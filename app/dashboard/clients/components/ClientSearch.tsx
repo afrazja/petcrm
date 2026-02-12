@@ -22,6 +22,8 @@ type ClientData = {
   id: string;
   fullName: string;
   phone: string | null;
+  email: string | null;
+  notes: string | null;
   pets: PetSummary[];
   lastVisit: string | null;
   totalSpent: number;
@@ -104,6 +106,8 @@ export default function ClientSearch({ clients }: { clients: ClientData[] }) {
               id={client.id}
               fullName={client.fullName}
               phone={client.phone}
+              email={client.email}
+              notes={client.notes}
               pets={client.pets}
               lastVisit={client.lastVisit}
               totalSpent={client.totalSpent}

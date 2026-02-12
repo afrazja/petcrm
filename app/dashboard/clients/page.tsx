@@ -14,6 +14,8 @@ export default async function ClientsPage() {
       id,
       full_name,
       phone,
+      email,
+      notes,
       pets ( id, name, date_of_birth, created_at )
     `
     )
@@ -111,6 +113,8 @@ export default async function ClientsPage() {
       id: client.id,
       fullName: client.full_name,
       phone: client.phone,
+      email: (client as unknown as { email: string | null }).email ?? null,
+      notes: (client as unknown as { notes: string | null }).notes ?? null,
       pets: pets.map((p) => {
         let ageLabel: string | null = null;
         if (p.date_of_birth) {

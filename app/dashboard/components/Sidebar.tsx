@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarIcon, UsersIcon, PawPrintIcon } from "@/components/icons";
+import { HomeIcon, UsersIcon, PawPrintIcon, CalendarIcon } from "@/components/icons";
 
 const navItems = [
-  { name: "Appointments", href: "/dashboard", icon: CalendarIcon },
+  { name: "Home", href: "/dashboard", icon: HomeIcon },
   { name: "Clients", href: "/dashboard/clients", icon: UsersIcon },
   { name: "Pets", href: "/dashboard/pets", icon: PawPrintIcon },
+  { name: "Appointments", href: "/dashboard/appointments", icon: CalendarIcon },
 ];
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
