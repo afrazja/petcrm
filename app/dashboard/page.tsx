@@ -2,6 +2,7 @@ import { CalendarIcon, UsersIcon, PawPrintIcon, DollarIcon } from "@/components/
 import { createClient } from "@/lib/supabase/server";
 import QuickCheckIn from "./components/QuickCheckIn";
 import TodaysPetsList from "./components/TodaysPetsList";
+import Reminders from "./components/Reminders";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -45,6 +46,29 @@ export default async function DashboardPage() {
   let weekRevenue = 0;
   let monthRevenue = 0;
   let serviceBreakdown: { service: string; total: number; count: number }[] = [];
+
+  // Reminder data
+  let upcomingAppointments: {
+    id: string;
+    petName: string;
+    service: string;
+    ownerName: string;
+    scheduledAt: string;
+  }[] = [];
+  let overdueClients: {
+    id: string;
+    fullName: string;
+    petNames: string[];
+    lastVisit: string;
+    weeksOverdue: number;
+  }[] = [];
+  let expiringVaccines: {
+    petId: string;
+    petName: string;
+    ownerName: string;
+    vaccineExpiry: string;
+    daysUntilExpiry: number;
+  }[] = [];
 
   try {
     // Fetch today's check-ins
@@ -96,20 +120,10 @@ export default async function DashboardPage() {
       const price = Number(appt.price) || 0;
       const completedAt = new Date(appt.completed_at);
 
-      // Month total
       monthRevenue += price;
+      if (completedAt >= weekStart) weekRevenue += price;
+      if (completedAt >= todayStart && completedAt <= todayEnd) todayRevenue += price;
 
-      // Week total
-      if (completedAt >= weekStart) {
-        weekRevenue += price;
-      }
-
-      // Today total
-      if (completedAt >= todayStart && completedAt <= todayEnd) {
-        todayRevenue += price;
-      }
-
-      // Service breakdown
       const svc = appt.service || "Other";
       const existing = serviceMap.get(svc);
       if (existing) {
@@ -123,8 +137,127 @@ export default async function DashboardPage() {
     serviceBreakdown = Array.from(serviceMap.entries())
       .map(([service, data]) => ({ service, ...data }))
       .sort((a, b) => b.total - a.total);
+
+    // --- REMINDERS ---
+
+    // 1. Upcoming appointments (next 7 days, starting tomorrow)
+    const tomorrowStart = new Date();
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    tomorrowStart.setHours(0, 0, 0, 0);
+    const weekAhead = new Date();
+    weekAhead.setDate(weekAhead.getDate() + 7);
+    weekAhead.setHours(23, 59, 59, 999);
+
+    const { data: upcomingAppts } = await supabase
+      .from("appointments")
+      .select(
+        "id, service, completed_at, pets!inner(name, clients!inner(full_name))"
+      )
+      .gte("completed_at", tomorrowStart.toISOString())
+      .lte("completed_at", weekAhead.toISOString())
+      .order("completed_at", { ascending: true })
+      .limit(10);
+
+    upcomingAppointments = (upcomingAppts ?? []).map((appt) => {
+      const pet = appt.pets as unknown as {
+        name: string;
+        clients: { full_name: string };
+      };
+      return {
+        id: appt.id,
+        petName: pet.name,
+        service: appt.service,
+        ownerName: pet.clients?.full_name ?? "Unknown",
+        scheduledAt: appt.completed_at,
+      };
+    });
+
+    // 2. Overdue clients (last visit >6 weeks ago)
+    const sixWeeksAgo = new Date();
+    sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42);
+
+    const { data: allClients } = await supabase
+      .from("clients")
+      .select("id, full_name, pets(name)")
+      .order("full_name");
+
+    const { data: allVisits } = await supabase
+      .from("appointments")
+      .select("client_id, completed_at")
+      .order("completed_at", { ascending: false });
+
+    // Group visits by client, find the most recent for each
+    const latestVisitByClient = new Map<string, string>();
+    for (const visit of allVisits ?? []) {
+      if (!latestVisitByClient.has(visit.client_id)) {
+        latestVisitByClient.set(visit.client_id, visit.completed_at);
+      }
+    }
+
+    overdueClients = (allClients ?? [])
+      .filter((client) => {
+        const lastVisit = latestVisitByClient.get(client.id);
+        if (!lastVisit) return false; // never visited = not "overdue", just new
+        return new Date(lastVisit) < sixWeeksAgo;
+      })
+      .map((client) => {
+        const lastVisit = latestVisitByClient.get(client.id)!;
+        const weeksAgo = Math.floor(
+          (Date.now() - new Date(lastVisit).getTime()) / (7 * 24 * 60 * 60 * 1000)
+        );
+        const pets = (
+          client.pets as unknown as { name: string }[]
+        ) ?? [];
+        return {
+          id: client.id,
+          fullName: client.full_name,
+          petNames: pets.map((p) => p.name),
+          lastVisit,
+          weeksOverdue: weeksAgo,
+        };
+      })
+      .sort((a, b) => b.weeksOverdue - a.weeksOverdue)
+      .slice(0, 10);
   } catch {
     // appointments table may not exist yet
+  }
+
+  // 3. Expiring vaccines (within 30 days or expired) — doesn't depend on appointments table
+  try {
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+    const { data: expiringPets } = await supabase
+      .from("pets")
+      .select("id, name, vaccine_expiry_date, clients!inner(full_name)")
+      .not("vaccine_expiry_date", "is", null)
+      .lte(
+        "vaccine_expiry_date",
+        thirtyDaysFromNow.toISOString().split("T")[0]
+      )
+      .order("vaccine_expiry_date", { ascending: true })
+      .limit(10);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    expiringVaccines = (expiringPets ?? []).map((pet) => {
+      const expiryDate = new Date(pet.vaccine_expiry_date);
+      expiryDate.setHours(0, 0, 0, 0);
+      const diffMs = expiryDate.getTime() - today.getTime();
+      const daysUntilExpiry = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+
+      const owner = pet.clients as unknown as { full_name: string };
+      return {
+        petId: pet.id,
+        petName: pet.name,
+        ownerName: owner?.full_name ?? "Unknown",
+        vaccineExpiry: pet.vaccine_expiry_date,
+        daysUntilExpiry,
+      };
+    });
+  } catch {
+    // vaccine query failed — that's fine
   }
 
   const stats = [
@@ -191,6 +324,13 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Reminders */}
+      <Reminders
+        upcomingAppointments={upcomingAppointments}
+        overdueClients={overdueClients}
+        expiringVaccines={expiringVaccines}
+      />
 
       {/* Service Breakdown */}
       {serviceBreakdown.length > 0 && (
