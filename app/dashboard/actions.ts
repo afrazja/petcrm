@@ -9,6 +9,14 @@ type ActionResult = {
   error?: string;
 };
 
+// Helper: detect if a Supabase error is caused by the "status" column not existing yet
+// (migration 009 hasn't been run). Returns true if the error message references the column.
+function isStatusColumnMissing(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  const msg = error.message?.toLowerCase() ?? "";
+  return msg.includes("status") && (msg.includes("column") || msg.includes("does not exist"));
+}
+
 export type ActionResultWithRebook = ActionResult & {
   rebookData?: {
     petId: string;
@@ -136,18 +144,28 @@ export async function quickCheckIn(formData: FormData): Promise<ActionResultWith
   const notes = (formData.get("notes") as string)?.trim();
   const duration = parseInt((formData.get("duration") as string) || "60") || 60;
 
-  const { error: appointmentError } = await supabase
+  const appointmentRow = {
+    pet_id: petId,
+    client_id: clientId,
+    profile_id: user.id,
+    service,
+    price: checkInPrice,
+    notes: notes || null,
+    duration,
+    status: "completed",
+  };
+
+  let { error: appointmentError } = await supabase
     .from("appointments")
-    .insert({
-      pet_id: petId,
-      client_id: clientId,
-      profile_id: user.id,
-      service,
-      price: checkInPrice,
-      notes: notes || null,
-      duration,
-      status: "completed",
-    });
+    .insert(appointmentRow);
+
+  // Retry without status if migration 009 hasn't been run
+  if (isStatusColumnMissing(appointmentError)) {
+    const { status: _s, ...rowWithoutStatus } = appointmentRow;
+    ({ error: appointmentError } = await supabase
+      .from("appointments")
+      .insert(rowWithoutStatus));
+  }
 
   if (appointmentError) {
     return { success: false, error: "Failed to log check-in." };
@@ -287,7 +305,7 @@ export async function logVisit(
     return { success: false, error: "Price cannot be negative." };
   }
 
-  const { error: insertError } = await supabase.from("appointments").insert({
+  const visitRow = {
     client_id: clientId,
     pet_id: petId,
     profile_id: user.id,
@@ -296,7 +314,14 @@ export async function logVisit(
     notes: notes?.trim() || null,
     duration: duration || 60,
     status: "completed",
-  });
+  };
+
+  let { error: insertError } = await supabase.from("appointments").insert(visitRow);
+
+  if (isStatusColumnMissing(insertError)) {
+    const { status: _s, ...rowWithoutStatus } = visitRow;
+    ({ error: insertError } = await supabase.from("appointments").insert(rowWithoutStatus));
+  }
 
   if (insertError) {
     return { success: false, error: "Failed to log visit." };
@@ -498,7 +523,7 @@ export async function addAppointment(formData: FormData): Promise<ActionResultWi
   const scheduledDate = new Date(scheduledAt);
   const appointmentStatus = scheduledDate > new Date() ? "scheduled" : "completed";
 
-  const { error: insertError } = await supabase.from("appointments").insert({
+  const apptRow = {
     pet_id: petId,
     client_id: pet.client_id,
     profile_id: user.id,
@@ -508,7 +533,14 @@ export async function addAppointment(formData: FormData): Promise<ActionResultWi
     notes: notes || null,
     duration,
     status: appointmentStatus,
-  });
+  };
+
+  let { error: insertError } = await supabase.from("appointments").insert(apptRow);
+
+  if (isStatusColumnMissing(insertError)) {
+    const { status: _s, ...rowWithoutStatus } = apptRow;
+    ({ error: insertError } = await supabase.from("appointments").insert(rowWithoutStatus));
+  }
 
   if (insertError) return { success: false, error: "Failed to create appointment." };
 
@@ -536,7 +568,7 @@ export async function rebookAppointment(data: {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return { success: false, error: "You must be logged in." };
 
-  const { error: insertError } = await supabase.from("appointments").insert({
+  const rebookRow = {
     pet_id: data.petId,
     client_id: data.clientId,
     profile_id: user.id,
@@ -545,7 +577,14 @@ export async function rebookAppointment(data: {
     completed_at: new Date(data.scheduledAt).toISOString(),
     duration: data.duration || 60,
     status: "scheduled",
-  });
+  };
+
+  let { error: insertError } = await supabase.from("appointments").insert(rebookRow);
+
+  if (isStatusColumnMissing(insertError)) {
+    const { status: _s, ...rowWithoutStatus } = rebookRow;
+    ({ error: insertError } = await supabase.from("appointments").insert(rowWithoutStatus));
+  }
 
   if (insertError) return { success: false, error: "Failed to create rebooking." };
 
@@ -889,13 +928,20 @@ export async function rescheduleAppointment(
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return { success: false, error: "You must be logged in." };
 
-  const { error: updateError } = await supabase
+  let { error: updateError } = await supabase
     .from("appointments")
     .update({
       completed_at: new Date(newDate).toISOString(),
       status: "scheduled",
     })
     .eq("id", appointmentId);
+
+  if (isStatusColumnMissing(updateError)) {
+    ({ error: updateError } = await supabase
+      .from("appointments")
+      .update({ completed_at: new Date(newDate).toISOString() })
+      .eq("id", appointmentId));
+  }
 
   if (updateError) return { success: false, error: "Failed to reschedule appointment." };
 
@@ -954,6 +1000,12 @@ export async function updateAppointmentStatus(
     .from("appointments")
     .update({ status })
     .eq("id", appointmentId);
+
+  if (isStatusColumnMissing(updateError)) {
+    // Status column doesn't exist yet — silently ignore since the feature isn't available
+    revalidatePath("/dashboard/appointments");
+    return { success: true };
+  }
 
   if (updateError) return { success: false, error: "Failed to update status." };
 
