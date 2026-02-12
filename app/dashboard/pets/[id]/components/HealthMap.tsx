@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useTransition, useEffect } from "react";
 import type { HealthMapMarker } from "@/lib/types/database";
-import { saveHealthMapMarker, deleteHealthMapMarker, uploadPetPhoto } from "@/app/dashboard/actions";
+import { saveHealthMapMarker, deleteHealthMapMarker, uploadPetPhoto, clearHealthMap } from "@/app/dashboard/actions";
 import { CameraIcon, CheckCircleIcon, XIcon } from "@/components/icons";
 import DogSvg from "./DogSvg";
 import MarkerPopup from "./MarkerPopup";
@@ -323,6 +323,20 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
       const formData = new FormData();
       formData.set("file", file);
       const result = await uploadPetPhoto(petId, formData);
+
+      if (result.success && result.photo) {
+        // Notify gallery to show the new photo immediately
+        window.dispatchEvent(
+          new CustomEvent("gallery:addphoto", { detail: result.photo })
+        );
+
+        // Clear all markers from DB and reset health map
+        await clearHealthMap(petId);
+        setMarkers([]);
+        setBackgroundUrl(null);
+        setSelectedMarkerId(null);
+        setNewMarkerPosition(null);
+      }
 
       setSaveStatus(result.success ? "saved" : "error");
     } catch {

@@ -52,6 +52,18 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
     return () => clearTimeout(timer);
   }, [notifications]);
 
+  // Listen for photos added from health map save-to-gallery
+  useEffect(() => {
+    function handleAddPhoto(e: Event) {
+      const photo = (e as CustomEvent).detail;
+      if (photo?.id && photo?.url && photo?.createdAt) {
+        setPhotos((prev) => [photo as Photo, ...prev]);
+      }
+    }
+    window.addEventListener("gallery:addphoto", handleAddPhoto);
+    return () => window.removeEventListener("gallery:addphoto", handleAddPhoto);
+  }, []);
+
   // Close lightbox on Escape
   useEffect(() => {
     if (!lightboxPhoto) return;

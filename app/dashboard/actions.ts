@@ -231,6 +231,34 @@ export async function deleteHealthMapMarker(
   return { success: true };
 }
 
+export async function clearHealthMap(
+  petId: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: "You must be logged in." };
+  }
+
+  // RLS policy ensures only owner's pets are writable
+  const { error } = await supabase
+    .from("pets")
+    .update({ health_map: [] as unknown as undefined })
+    .eq("id", petId);
+
+  if (error) {
+    return { success: false, error: "Failed to clear health map." };
+  }
+
+  revalidatePath(`/dashboard/pets/${petId}`);
+  return { success: true };
+}
+
 export async function logVisit(
   clientId: string,
   petId: string,
