@@ -5,13 +5,13 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "PetCRM - Smart Grooming Management",
+  title: "Mirifer - Smart Grooming Management",
   description: "The all-in-one CRM for solo pet groomers",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "PetCRM",
+    title: "Mirifer",
   },
   formatDetection: {
     telephone: false,

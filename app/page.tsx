@@ -213,6 +213,12 @@ export default function LandingPage() {
             <PawPrintIcon className="w-5 h-5 text-sage-300" />
             <span className="text-sm font-medium text-sage-500">Mirifer</span>
           </div>
+          <a
+            href="mailto:afz.javan@gmail.com"
+            className="text-sm text-sage-400 hover:text-sage-600 transition-colors"
+          >
+            afz.javan@gmail.com
+          </a>
           <p className="text-sm text-sage-400">
             &copy; {new Date().getFullYear()} Mirifer. Made with care for pet
             professionals.

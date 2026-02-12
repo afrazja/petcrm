@@ -1,6 +1,6 @@
 {
-  "name": "PetCRM - Smart Grooming Management",
-  "short_name": "PetCRM",
+  "name": "Mirifer - Smart Grooming Management",
+  "short_name": "Mirifer",
   "description": "The all-in-one CRM for solo pet groomers",
   "start_url": "/dashboard",
   "display": "standalone",

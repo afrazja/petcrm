@@ -16,7 +16,7 @@ export default function AuthLayout({
         >
           <PawPrintIcon className="w-8 h-8 text-sage-400" />
           <span className="text-2xl font-semibold tracking-tight text-sage-700">
-            PetCRM
+            Mirifer
           </span>
         </Link>
         <Suspense>{children}</Suspense>

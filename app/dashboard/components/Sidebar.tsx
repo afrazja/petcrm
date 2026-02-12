@@ -22,7 +22,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         <Link href="/" className="flex items-center gap-2">
           <PawPrintIcon className="w-7 h-7 text-sage-400" />
           <span className="text-xl font-semibold tracking-tight text-sage-700">
-            PetCRM
+            Mirifer
           </span>
         </Link>
       </div>
@@ -58,7 +58,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Footer */}
       <div className="px-6 py-4 border-t border-warm-gray/50">
-        <p className="text-xs text-sage-400">PetCRM v0.1.0</p>
+        <p className="text-xs text-sage-400">Mirifer v0.1.0</p>
       </div>
     </div>
   );
