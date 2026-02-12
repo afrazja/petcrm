@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useCallback, useTransition } from "react";
+import { useState, useRef, useCallback, useTransition, useEffect } from "react";
 import type { HealthMapMarker } from "@/lib/types/database";
-import { saveHealthMapMarker, deleteHealthMapMarker } from "@/app/dashboard/actions";
+import { saveHealthMapMarker, deleteHealthMapMarker, uploadPetPhoto } from "@/app/dashboard/actions";
+import { CameraIcon, CheckCircleIcon } from "@/components/icons";
 import DogSvg from "./DogSvg";
 import MarkerPopup from "./MarkerPopup";
 
@@ -22,8 +23,17 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
     y: number;
   } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "error" | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Auto-dismiss save status after 2 seconds
+  useEffect(() => {
+    if (!saveStatus) return;
+    const timer = setTimeout(() => setSaveStatus(null), 2000);
+    return () => clearTimeout(timer);
+  }, [saveStatus]);
 
   // Shared logic: convert client coordinates to SVG fraction coordinates
   const placeMarkerAt = useCallback((clientX: number, clientY: number) => {
@@ -157,6 +167,98 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
     [markers, petId]
   );
 
+  const saveToGallery = useCallback(async () => {
+    const svg = svgRef.current;
+    if (!svg || markers.length === 0) return;
+
+    setIsSaving(true);
+    setSaveStatus(null);
+
+    try {
+      // Clone SVG so we can modify it without affecting the DOM
+      const clone = svg.cloneNode(true) as SVGSVGElement;
+
+      // Set explicit dimensions and a white background
+      clone.setAttribute("width", String(SVG_WIDTH * 2));
+      clone.setAttribute("height", String(SVG_HEIGHT * 2));
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+      // Add white background rect as the first child
+      const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bg.setAttribute("width", "100%");
+      bg.setAttribute("height", "100%");
+      bg.setAttribute("fill", "white");
+      clone.insertBefore(bg, clone.firstChild);
+
+      // Replace currentColor with the actual sage color used in the SVG
+      clone.querySelectorAll("[stroke='currentColor']").forEach((el) => {
+        el.setAttribute("stroke", "#b0bfab");
+      });
+      clone.querySelectorAll("[fill='currentColor']").forEach((el) => {
+        el.setAttribute("fill", "#b0bfab");
+      });
+
+      // Resolve Tailwind CSS classes to inline styles for text elements
+      clone.querySelectorAll("text").forEach((textEl) => {
+        textEl.setAttribute("fill", "#4a5e45");
+        textEl.setAttribute("font-size", "10");
+        textEl.setAttribute("font-weight", "500");
+        textEl.setAttribute("font-family", "system-ui, sans-serif");
+        textEl.removeAttribute("class");
+      });
+
+      // Remove CSS class attributes that won't render outside the page
+      clone.querySelectorAll("[class]").forEach((el) => {
+        el.removeAttribute("class");
+      });
+
+      // Serialize to XML
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(clone);
+      const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+
+      // Draw SVG onto a canvas
+      const img = new window.Image();
+      img.crossOrigin = "anonymous";
+
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Failed to load SVG image"));
+        img.src = url;
+      });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = SVG_WIDTH * 2;
+      canvas.height = SVG_HEIGHT * 2;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas not supported");
+
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+
+      // Convert canvas to blob
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/png")
+      );
+      if (!blob) throw new Error("Failed to create image");
+
+      // Upload via existing server action
+      const file = new File([blob], `health-map-${Date.now()}.png`, { type: "image/png" });
+      const formData = new FormData();
+      formData.set("file", file);
+      const result = await uploadPetPhoto(petId, formData);
+
+      setSaveStatus(result.success ? "saved" : "error");
+    } catch {
+      setSaveStatus("error");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [markers, petId]);
+
   // Get pixel position for popup from fraction coordinates
   function getPixelPosition(fracX: number, fracY: number) {
     const svg = svgRef.current;
@@ -183,11 +285,37 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
               Tap on the dog to place a marker
             </p>
           </div>
-          {markers.length > 0 && (
-            <span className="text-xs bg-sage-50 text-sage-600 px-2.5 py-1 rounded-full font-medium">
-              {markers.length} marker{markers.length !== 1 ? "s" : ""}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {markers.length > 0 && (
+              <span className="text-xs bg-sage-50 text-sage-600 px-2.5 py-1 rounded-full font-medium">
+                {markers.length} marker{markers.length !== 1 ? "s" : ""}
+              </span>
+            )}
+            {markers.length > 0 && (
+              <button
+                onClick={saveToGallery}
+                disabled={isSaving}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-sage-400 text-white hover:bg-sage-500 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : saveStatus === "saved" ? (
+                  <>
+                    <CheckCircleIcon className="w-3.5 h-3.5" />
+                    Saved!
+                  </>
+                ) : (
+                  <>
+                    <CameraIcon className="w-3.5 h-3.5" />
+                    Save to Gallery
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="relative bg-sage-50/50 rounded-xl border border-sage-100 overflow-hidden">
@@ -277,6 +405,11 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
         {isPending && (
           <div className="mt-2 text-xs text-sage-400 text-center">
             Saving...
+          </div>
+        )}
+        {saveStatus === "error" && (
+          <div className="mt-2 text-xs text-red-500 text-center">
+            Failed to save to gallery. Try again.
           </div>
         )}
       </div>
