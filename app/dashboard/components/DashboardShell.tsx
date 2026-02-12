@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import OfflineBanner from "./OfflineBanner";
 import { XIcon } from "@/components/icons";
 
 type Props = {
@@ -53,6 +54,7 @@ export default function DashboardShell({
           userInitial={userInitial}
           onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
         />
+        <OfflineBanner />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
