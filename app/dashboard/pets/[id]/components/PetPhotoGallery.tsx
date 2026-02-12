@@ -27,7 +27,8 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
   const [notifications, setNotifications] = useState<UploadNotification[]>([]);
   const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Track cancelled upload IDs so we can ignore their results
   const cancelledRef = useRef<Set<string>>(new Set());
@@ -124,11 +125,11 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
   }
 
   async function handleDelete(photo: Photo) {
-    setDeleting(true);
+    setDeleting(photo.id);
     const result = await deletePetPhoto(photo.id, petId);
     if (result.success) {
       setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
-      setLightboxPhoto(null);
+      if (lightboxPhoto?.id === photo.id) setLightboxPhoto(null);
     } else {
       setNotifications((prev) => [
         ...prev,
@@ -140,7 +141,8 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
         },
       ]);
     }
-    setDeleting(false);
+    setDeleting(null);
+    setDeleteConfirmId(null);
   }
 
   return (
@@ -265,18 +267,53 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {photos.map((photo) => (
-            <button
-              key={photo.id}
-              onClick={() => setLightboxPhoto(photo)}
-              className="relative aspect-square rounded-xl overflow-hidden bg-sage-50 hover:opacity-90 transition-opacity cursor-pointer group"
-            >
-              <Image
-                src={photo.url}
-                alt="Pet photo"
-                fill
-                sizes="(max-width: 640px) 33vw, 25vw"
-                className="object-cover"
-              />
+            <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden bg-sage-50 group">
+              <button
+                onClick={() => setLightboxPhoto(photo)}
+                className="absolute inset-0 cursor-pointer"
+              >
+                <Image
+                  src={photo.url}
+                  alt="Pet photo"
+                  fill
+                  sizes="(max-width: 640px) 33vw, 25vw"
+                  className="object-cover"
+                />
+              </button>
+
+              {/* Delete button overlay */}
+              {deleteConfirmId === photo.id ? (
+                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 z-10">
+                  <p className="text-xs text-white font-medium">Delete?</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setDeleteConfirmId(null)}
+                      className="px-2.5 py-1 text-xs font-medium text-white bg-white/20 rounded-lg hover:bg-white/30 transition-colors cursor-pointer"
+                    >
+                      No
+                    </button>
+                    <button
+                      onClick={() => handleDelete(photo)}
+                      disabled={deleting === photo.id}
+                      className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {deleting === photo.id ? "..." : "Yes"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteConfirmId(photo.id);
+                  }}
+                  className="absolute top-1.5 right-1.5 p-1.5 rounded-lg bg-black/40 text-white/80 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all cursor-pointer z-10"
+                  aria-label="Delete photo"
+                >
+                  <TrashIcon className="w-3.5 h-3.5" />
+                </button>
+              )}
+
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/40 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                 <p className="text-[10px] text-white text-center">
                   {new Date(photo.createdAt).toLocaleDateString("en-US", {
@@ -285,7 +322,7 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
                   })}
                 </p>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}
@@ -329,11 +366,11 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
               </p>
               <button
                 onClick={() => handleDelete(lightboxPhoto)}
-                disabled={deleting}
+                disabled={deleting !== null}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm disabled:opacity-50 cursor-pointer"
               >
                 <TrashIcon className="w-4 h-4" />
-                {deleting ? "Deleting..." : "Delete"}
+                {deleting === lightboxPhoto.id ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>
