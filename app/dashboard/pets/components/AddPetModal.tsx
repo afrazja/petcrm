@@ -91,6 +91,22 @@ export default function AddPetModal() {
               </div>
               <div>
                 <label
+                  htmlFor="ownerName"
+                  className="block text-sm font-medium text-sage-700 mb-1.5"
+                >
+                  Owner Name
+                </label>
+                <input
+                  id="ownerName"
+                  name="ownerName"
+                  type="text"
+                  required
+                  placeholder="e.g. Sarah Johnson"
+                  className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                />
+              </div>
+              <div>
+                <label
                   htmlFor="ownerPhone"
                   className="block text-sm font-medium text-sage-700 mb-1.5"
                 >

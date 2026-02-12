@@ -313,12 +313,16 @@ export async function addClient(formData: FormData): Promise<ActionResult> {
 
 export async function addPet(formData: FormData): Promise<ActionResult> {
   const petName = (formData.get("petName") as string)?.trim();
+  const ownerName = (formData.get("ownerName") as string)?.trim();
   const ownerPhone = (formData.get("ownerPhone") as string)?.trim();
   const breed = (formData.get("breed") as string)?.trim();
   const dateOfBirth = (formData.get("dateOfBirth") as string)?.trim();
 
   if (!petName) {
     return { success: false, error: "Pet name is required." };
+  }
+  if (!ownerName) {
+    return { success: false, error: "Owner name is required." };
   }
   if (!ownerPhone) {
     return { success: false, error: "Owner phone is required." };
@@ -340,7 +344,7 @@ export async function addPet(formData: FormData): Promise<ActionResult> {
     return { success: false, error: "You must be logged in." };
   }
 
-  // Find client by phone
+  // Find or create client by phone
   const { data: clients } = await supabase
     .from("clients")
     .select("id")
@@ -348,14 +352,26 @@ export async function addPet(formData: FormData): Promise<ActionResult> {
     .eq("phone", normalizedPhone)
     .limit(1);
 
-  if (!clients || clients.length === 0) {
-    return {
-      success: false,
-      error: "No client found with this phone number. Add the client first.",
-    };
-  }
+  let clientId: string;
 
-  const clientId = clients[0].id;
+  if (clients && clients.length > 0) {
+    clientId = clients[0].id;
+  } else {
+    const { data: newClient, error: clientError } = await supabase
+      .from("clients")
+      .insert({
+        profile_id: user.id,
+        full_name: ownerName,
+        phone: normalizedPhone,
+      })
+      .select("id")
+      .single();
+
+    if (clientError || !newClient) {
+      return { success: false, error: "Failed to create client." };
+    }
+    clientId = newClient.id;
+  }
 
   // Check for duplicate pet (same name + client)
   const { data: existingPets } = await supabase
@@ -384,6 +400,7 @@ export async function addPet(formData: FormData): Promise<ActionResult> {
   }
 
   revalidatePath("/dashboard/pets");
+  revalidatePath("/dashboard/clients");
   revalidatePath("/dashboard");
   return { success: true };
 }
