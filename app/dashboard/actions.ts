@@ -9,12 +9,7 @@ type ActionResult = {
   error?: string;
 };
 
-type CheckInResult = {
-  success: boolean;
-  error?: string;
-};
-
-export async function quickCheckIn(formData: FormData): Promise<CheckInResult> {
+export async function quickCheckIn(formData: FormData): Promise<ActionResult> {
   const petName = (formData.get("petName") as string)?.trim();
   const ownerName = (formData.get("ownerName") as string)?.trim();
   const ownerPhone = (formData.get("ownerPhone") as string)?.trim();

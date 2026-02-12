@@ -9,6 +9,17 @@ type TodaysPet = {
   checkedInAt: string;
 };
 
+// Format phone for display: 5551234567 → (555) 123-4567
+function formatPhone(phone: string) {
+  if (phone.length === 10) {
+    return `(${phone.slice(0, 3)}) ${phone.slice(3, 6)}-${phone.slice(6)}`;
+  }
+  if (phone.length === 11 && phone.startsWith("1")) {
+    return `+1 (${phone.slice(1, 4)}) ${phone.slice(4, 7)}-${phone.slice(7)}`;
+  }
+  return phone;
+}
+
 export default function TodaysPetsList({ pets }: { pets: TodaysPet[] }) {
   if (pets.length === 0) {
     return (
@@ -60,7 +71,7 @@ export default function TodaysPetsList({ pets }: { pets: TodaysPet[] }) {
                 {pet.ownerPhone && (
                   <p className="text-sm text-sage-500 flex items-center gap-1 justify-end">
                     <PhoneIcon className="w-3.5 h-3.5" />
-                    {pet.ownerPhone}
+                    {formatPhone(pet.ownerPhone)}
                   </p>
                 )}
                 <p className="text-xs text-sage-400">{time}</p>

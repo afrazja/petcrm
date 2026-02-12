@@ -1,29 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { signout } from "@/app/auth/actions";
 import { MenuIcon } from "@/components/icons";
 
-export default function Header({ onMenuToggle }: { onMenuToggle: () => void }) {
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userInitial, setUserInitial] = useState("U");
+type Props = {
+  userEmail: string | null;
+  userInitial: string;
+  onMenuToggle: () => void;
+};
 
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setUserEmail(user.email ?? null);
-        const name = user.user_metadata?.full_name as string | undefined;
-        setUserInitial(
-          name
-            ? name.charAt(0).toUpperCase()
-            : (user.email?.charAt(0).toUpperCase() ?? "U")
-        );
-      }
-    });
-  }, []);
-
+export default function Header({ userEmail, userInitial, onMenuToggle }: Props) {
   return (
     <header className="h-16 bg-white border-b border-warm-gray/50 flex items-center justify-between px-6 flex-shrink-0">
       <div className="flex items-center gap-3">
