@@ -69,6 +69,7 @@ export type Database = {
           client_id: string;
           name: string;
           breed: string | null;
+          date_of_birth: string | null;
           vaccine_expiry_date: string | null;
           notes: string | null;
           health_map: HealthMapMarker[] | null;
@@ -80,6 +81,7 @@ export type Database = {
           client_id: string;
           name: string;
           breed?: string | null;
+          date_of_birth?: string | null;
           vaccine_expiry_date?: string | null;
           notes?: string | null;
           health_map?: HealthMapMarker[] | null;
@@ -89,10 +91,41 @@ export type Database = {
         Update: {
           name?: string;
           breed?: string | null;
+          date_of_birth?: string | null;
           vaccine_expiry_date?: string | null;
           notes?: string | null;
           health_map?: HealthMapMarker[] | null;
           updated_at?: string;
+        };
+      };
+      appointments: {
+        Row: {
+          id: string;
+          pet_id: string;
+          client_id: string;
+          profile_id: string;
+          service: string;
+          price: number;
+          notes: string | null;
+          completed_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pet_id: string;
+          client_id: string;
+          profile_id: string;
+          service?: string;
+          price?: number;
+          notes?: string | null;
+          completed_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          service?: string;
+          price?: number;
+          notes?: string | null;
+          completed_at?: string;
         };
       };
     };

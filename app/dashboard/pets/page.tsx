@@ -12,20 +12,49 @@ export default async function PetsPage() {
       id,
       name,
       breed,
+      date_of_birth,
       created_at,
       clients!inner ( full_name, phone )
     `
     )
     .order("created_at", { ascending: false });
 
-  const formattedPets = (pets ?? []).map((pet) => ({
-    id: pet.id,
-    name: pet.name,
-    breed: pet.breed,
-    createdAt: pet.created_at,
-    ownerName: (pet.clients as unknown as { full_name: string })?.full_name ?? "Unknown",
-    ownerPhone: (pet.clients as unknown as { phone: string | null })?.phone ?? null,
-  }));
+  const formattedPets = (pets ?? []).map((pet) => {
+    // Calculate age label
+    let ageLabel: string | null = null;
+    if (pet.date_of_birth) {
+      const dob = new Date(pet.date_of_birth);
+      const now = new Date();
+      let years = now.getFullYear() - dob.getFullYear();
+      let months = now.getMonth() - dob.getMonth();
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+      if (now.getDate() < dob.getDate()) {
+        months--;
+        if (months < 0) {
+          years--;
+          months += 12;
+        }
+      }
+      if (years > 0) {
+        ageLabel = `${years}yr${months > 0 ? ` ${months}mo` : ""}`;
+      } else {
+        ageLabel = `${months}mo`;
+      }
+    }
+
+    return {
+      id: pet.id,
+      name: pet.name,
+      breed: pet.breed,
+      ageLabel,
+      createdAt: pet.created_at,
+      ownerName: (pet.clients as unknown as { full_name: string })?.full_name ?? "Unknown",
+      ownerPhone: (pet.clients as unknown as { phone: string | null })?.phone ?? null,
+    };
+  });
 
   return (
     <div>
@@ -66,9 +95,9 @@ export default async function PetsPage() {
                   <p className="font-medium text-sage-800 truncate">
                     {pet.name}
                   </p>
-                  {pet.breed && (
-                    <p className="text-sm text-sage-500 truncate">{pet.breed}</p>
-                  )}
+                  <p className="text-sm text-sage-500 truncate">
+                    {[pet.breed, pet.ageLabel].filter(Boolean).join(" · ") || "No details"}
+                  </p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-sm text-sage-500">{pet.ownerName}</p>

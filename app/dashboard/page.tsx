@@ -15,37 +15,56 @@ export default async function DashboardPage() {
     .from("pets")
     .select("*", { count: "exact", head: true });
 
-  // Fetch today's pets with owner phone via join
+  // Fetch today's check-ins from appointments, joining pet + client data
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
 
-  const { data: todaysPets } = await supabase
-    .from("pets")
-    .select(
+  let todayCount = 0;
+  let formattedPets: {
+    id: string;
+    name: string;
+    breed: string | null;
+    ownerPhone: string | null;
+    checkedInAt: string;
+  }[] = [];
+
+  try {
+    const { data: todaysAppointments } = await supabase
+      .from("appointments")
+      .select(
+        `
+        id,
+        completed_at,
+        pets!inner ( id, name, breed ),
+        clients!inner ( phone )
       `
-      id,
-      name,
-      breed,
-      created_at,
-      clients!inner ( phone )
-    `
-    )
-    .gte("created_at", todayStart.toISOString())
-    .lte("created_at", todayEnd.toISOString())
-    .order("created_at", { ascending: false });
+      )
+      .gte("completed_at", todayStart.toISOString())
+      .lte("completed_at", todayEnd.toISOString())
+      .order("completed_at", { ascending: false });
 
-  const formattedPets = (todaysPets ?? []).map((pet) => ({
-    id: pet.id,
-    name: pet.name,
-    breed: pet.breed,
-    ownerPhone:
-      (pet.clients as unknown as { phone: string | null })?.phone ?? null,
-    checkedInAt: pet.created_at,
-  }));
+    formattedPets = (todaysAppointments ?? []).map((appt) => {
+      const pet = appt.pets as unknown as {
+        id: string;
+        name: string;
+        breed: string | null;
+      };
+      const client = appt.clients as unknown as { phone: string | null };
+      return {
+        id: pet.id,
+        name: pet.name,
+        breed: pet.breed,
+        ownerPhone: client?.phone ?? null,
+        checkedInAt: appt.completed_at,
+      };
+    });
 
-  const todayCount = formattedPets.length;
+    todayCount = formattedPets.length;
+  } catch {
+    // appointments table may not exist yet
+  }
 
   const stats = [
     {

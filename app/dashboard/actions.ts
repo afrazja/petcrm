@@ -16,11 +16,16 @@ type CheckInResult = {
 
 export async function quickCheckIn(formData: FormData): Promise<CheckInResult> {
   const petName = (formData.get("petName") as string)?.trim();
+  const ownerName = (formData.get("ownerName") as string)?.trim();
   const ownerPhone = (formData.get("ownerPhone") as string)?.trim();
   const breed = (formData.get("breed") as string)?.trim();
+  const dateOfBirth = (formData.get("dateOfBirth") as string)?.trim();
 
   if (!petName) {
     return { success: false, error: "Pet name is required." };
+  }
+  if (!ownerName) {
+    return { success: false, error: "Owner name is required." };
   }
   if (!ownerPhone) {
     return { success: false, error: "Owner phone is required." };
@@ -55,12 +60,22 @@ export async function quickCheckIn(formData: FormData): Promise<CheckInResult> {
 
   if (existingClients && existingClients.length > 0) {
     clientId = existingClients[0].id;
+    // Update the name if it was a placeholder from before
+    if (
+      ownerName &&
+      existingClients[0].full_name?.startsWith("Owner (")
+    ) {
+      await supabase
+        .from("clients")
+        .update({ full_name: ownerName })
+        .eq("id", clientId);
+    }
   } else {
     const { data: newClient, error: clientError } = await supabase
       .from("clients")
       .insert({
         profile_id: user.id,
-        full_name: `Owner (${normalizedPhone})`,
+        full_name: ownerName,
         phone: normalizedPhone,
       })
       .select()
@@ -72,17 +87,62 @@ export async function quickCheckIn(formData: FormData): Promise<CheckInResult> {
     clientId = newClient.id;
   }
 
-  const { error: petError } = await supabase.from("pets").insert({
-    client_id: clientId,
-    name: petName,
-    breed: breed || null,
-  });
+  // Look for an existing pet with the same name under this client
+  const { data: existingPets } = await supabase
+    .from("pets")
+    .select("id, breed, date_of_birth")
+    .eq("client_id", clientId)
+    .ilike("name", petName)
+    .limit(1);
 
-  if (petError) {
-    return { success: false, error: "Failed to save pet." };
+  let petId: string;
+
+  if (existingPets && existingPets.length > 0) {
+    // Reuse existing pet — fill in breed/dob if they were missing
+    petId = existingPets[0].id;
+    const updates: Record<string, string> = {};
+    if (breed && !existingPets[0].breed) updates.breed = breed;
+    if (dateOfBirth && !existingPets[0].date_of_birth)
+      updates.date_of_birth = dateOfBirth;
+    if (Object.keys(updates).length > 0) {
+      await supabase.from("pets").update(updates).eq("id", petId);
+    }
+  } else {
+    // Create new pet
+    const { data: newPet, error: petError } = await supabase
+      .from("pets")
+      .insert({
+        client_id: clientId,
+        name: petName,
+        breed: breed || null,
+        date_of_birth: dateOfBirth || null,
+      })
+      .select("id")
+      .single();
+
+    if (petError || !newPet) {
+      return { success: false, error: "Failed to save pet." };
+    }
+    petId = newPet.id;
+  }
+
+  // Always log a visit (appointment) for this check-in
+  const { error: appointmentError } = await supabase
+    .from("appointments")
+    .insert({
+      pet_id: petId,
+      client_id: clientId,
+      profile_id: user.id,
+      service: "Grooming",
+      price: 0,
+    });
+
+  if (appointmentError) {
+    return { success: false, error: "Failed to log check-in." };
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/clients");
   return { success: true };
 }
 
@@ -101,45 +161,17 @@ export async function saveHealthMapMarker(
     return { success: false, error: "You must be logged in." };
   }
 
-  // Fetch the current pet to get existing health_map
-  const { data: pet, error: fetchError } = await supabase
-    .from("pets")
-    .select("health_map, clients!inner ( profile_id )")
-    .eq("id", petId)
-    .single();
+  // Atomic upsert via Postgres function — no read-modify-write race
+  const { error: rpcError } = await supabase.rpc("upsert_health_map_marker", {
+    p_pet_id: petId,
+    p_user_id: user.id,
+    p_marker: marker as unknown as Record<string, unknown>,
+  });
 
-  if (fetchError || !pet) {
-    return { success: false, error: "Pet not found." };
-  }
-
-  // Verify ownership through client -> profile_id
-  const profileId = (pet.clients as unknown as { profile_id: string })
-    ?.profile_id;
-  if (profileId !== user.id) {
-    return { success: false, error: "Unauthorized." };
-  }
-
-  // Read-modify-write: update or add marker
-  const existingMarkers: HealthMapMarker[] =
-    (pet.health_map as HealthMapMarker[] | null) ?? [];
-  const markerIndex = existingMarkers.findIndex((m) => m.id === marker.id);
-
-  let updatedMarkers: HealthMapMarker[];
-  if (markerIndex >= 0) {
-    // Update existing marker
-    updatedMarkers = [...existingMarkers];
-    updatedMarkers[markerIndex] = marker;
-  } else {
-    // Add new marker
-    updatedMarkers = [...existingMarkers, marker];
-  }
-
-  const { error: updateError } = await supabase
-    .from("pets")
-    .update({ health_map: updatedMarkers as unknown as Record<string, unknown>[] })
-    .eq("id", petId);
-
-  if (updateError) {
+  if (rpcError) {
+    if (rpcError.message?.includes("Unauthorized")) {
+      return { success: false, error: "Unauthorized." };
+    }
     return { success: false, error: "Failed to save marker." };
   }
 
@@ -162,43 +194,61 @@ export async function deleteHealthMapMarker(
     return { success: false, error: "You must be logged in." };
   }
 
-  // Fetch the current pet to get existing health_map
-  const { data: pet, error: fetchError } = await supabase
-    .from("pets")
-    .select("health_map, clients!inner ( profile_id )")
-    .eq("id", petId)
-    .single();
+  // Atomic delete via Postgres function — no read-modify-write race
+  const { error: rpcError } = await supabase.rpc("delete_health_map_marker", {
+    p_pet_id: petId,
+    p_user_id: user.id,
+    p_marker_id: markerId,
+  });
 
-  if (fetchError || !pet) {
-    return { success: false, error: "Pet not found." };
-  }
-
-  // Verify ownership
-  const profileId = (pet.clients as unknown as { profile_id: string })
-    ?.profile_id;
-  if (profileId !== user.id) {
-    return { success: false, error: "Unauthorized." };
-  }
-
-  // Remove the marker from the array
-  const existingMarkers: HealthMapMarker[] =
-    (pet.health_map as HealthMapMarker[] | null) ?? [];
-  const updatedMarkers = existingMarkers.filter((m) => m.id !== markerId);
-
-  const { error: updateError } = await supabase
-    .from("pets")
-    .update({
-      health_map:
-        updatedMarkers.length > 0
-          ? (updatedMarkers as unknown as Record<string, unknown>[])
-          : null,
-    })
-    .eq("id", petId);
-
-  if (updateError) {
+  if (rpcError) {
+    if (rpcError.message?.includes("Unauthorized")) {
+      return { success: false, error: "Unauthorized." };
+    }
     return { success: false, error: "Failed to delete marker." };
   }
 
   revalidatePath(`/dashboard/pets/${petId}`);
+  return { success: true };
+}
+
+export async function logVisit(
+  clientId: string,
+  petId: string,
+  service: string,
+  price: number
+): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: "You must be logged in." };
+  }
+
+  if (!service.trim()) {
+    return { success: false, error: "Service is required." };
+  }
+
+  if (price < 0) {
+    return { success: false, error: "Price cannot be negative." };
+  }
+
+  const { error: insertError } = await supabase.from("appointments").insert({
+    client_id: clientId,
+    pet_id: petId,
+    profile_id: user.id,
+    service: service.trim(),
+    price,
+  });
+
+  if (insertError) {
+    return { success: false, error: "Failed to log visit." };
+  }
+
+  revalidatePath("/dashboard/clients");
   return { success: true };
 }
