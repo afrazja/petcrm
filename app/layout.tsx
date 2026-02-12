@@ -32,8 +32,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="icon" href="/icons/icon-192.jpg" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.jpg" />
       </head>
       <body
         className={`${inter.className} antialiased bg-soft-white text-sage-800 min-h-screen overscroll-none`}
