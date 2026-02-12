@@ -1,35 +1,80 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { PlusIcon, XIcon } from "@/components/icons";
-import { quickCheckIn } from "@/app/dashboard/actions";
+import { PlusIcon, XIcon, CheckCircleIcon } from "@/components/icons";
+import { quickCheckIn, rebookAppointment } from "@/app/dashboard/actions";
+import type { ActionResultWithRebook } from "@/app/dashboard/actions";
 import Button from "@/components/ui/Button";
+
+function getSixWeeksFromNow(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 42);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
 
 export default function QuickCheckIn() {
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Rebook state
+  const [rebookData, setRebookData] = useState<ActionResultWithRebook["rebookData"] | null>(null);
+  const [rebookDate, setRebookDate] = useState(getSixWeeksFromNow());
+  const [rebookPending, setRebookPending] = useState(false);
+  const [rebookSuccess, setRebookSuccess] = useState(false);
+
   // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
+      if (e.key === "Escape") handleClose();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
+  function handleClose() {
+    setIsOpen(false);
+    setRebookData(null);
+    setRebookSuccess(false);
+    setError(null);
+  }
+
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
       const result = await quickCheckIn(formData);
-      if (result.success) {
-        setIsOpen(false);
+      if (result.success && result.rebookData) {
         setError(null);
+        setRebookData(result.rebookData);
+        setRebookDate(getSixWeeksFromNow());
+        setRebookSuccess(false);
+      } else if (result.success) {
+        handleClose();
       } else {
         setError(result.error ?? "Something went wrong.");
       }
     });
+  }
+
+  async function handleRebook() {
+    if (!rebookData) return;
+    setRebookPending(true);
+    try {
+      const result = await rebookAppointment({
+        petId: rebookData.petId,
+        clientId: rebookData.clientId,
+        service: rebookData.service,
+        scheduledAt: rebookDate,
+      });
+      if (result.success) {
+        setRebookSuccess(true);
+        setTimeout(() => handleClose(), 1200);
+      } else {
+        setError(result.error ?? "Failed to rebook.");
+      }
+    } finally {
+      setRebookPending(false);
+    }
   }
 
   return (
@@ -39,6 +84,8 @@ export default function QuickCheckIn() {
         onClick={() => {
           setIsOpen(true);
           setError(null);
+          setRebookData(null);
+          setRebookSuccess(false);
         }}
         className="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-sage-400 text-white shadow-lg hover:bg-sage-500 hover:shadow-xl active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer"
         aria-label="Quick check-in"
@@ -52,121 +99,204 @@ export default function QuickCheckIn() {
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-sage-900/20 backdrop-blur-sm animate-fade-in"
-            onClick={() => setIsOpen(false)}
+            onClick={handleClose}
           />
 
           {/* Panel */}
-          <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 sm:p-8 shadow-xl animate-slide-up">
+          <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 sm:p-8 shadow-xl animate-slide-up max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-sage-800">
-                Quick Check-In
+                {rebookData ? "Rebook" : "Quick Check-In"}
               </h2>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={handleClose}
                 className="p-2 -mr-2 rounded-lg text-sage-400 hover:bg-sage-50 transition-colors cursor-pointer"
               >
                 <XIcon className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Form */}
-            <form action={handleSubmit} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="petName"
-                  className="block text-sm font-medium text-sage-700 mb-1.5"
-                >
-                  Pet Name
-                </label>
-                <input
-                  id="petName"
-                  name="petName"
-                  type="text"
-                  required
-                  autoFocus
-                  placeholder="e.g. Buddy"
-                  className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="ownerName"
-                  className="block text-sm font-medium text-sage-700 mb-1.5"
-                >
-                  Owner Name
-                </label>
-                <input
-                  id="ownerName"
-                  name="ownerName"
-                  type="text"
-                  required
-                  placeholder="e.g. Sarah Johnson"
-                  className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="ownerPhone"
-                  className="block text-sm font-medium text-sage-700 mb-1.5"
-                >
-                  Owner Phone
-                </label>
-                <input
-                  id="ownerPhone"
-                  name="ownerPhone"
-                  type="tel"
-                  required
-                  placeholder="e.g. 555-123-4567"
-                  className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="breed"
-                  className="block text-sm font-medium text-sage-700 mb-1.5"
-                >
-                  Breed
-                </label>
-                <input
-                  id="breed"
-                  name="breed"
-                  type="text"
-                  placeholder="e.g. Golden Retriever"
-                  className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="dateOfBirth"
-                  className="block text-sm font-medium text-sage-700 mb-1.5"
-                >
-                  Date of Birth
-                </label>
-                <input
-                  id="dateOfBirth"
-                  name="dateOfBirth"
-                  type="date"
-                  max={new Date().toISOString().split("T")[0]}
-                  className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
-                />
-              </div>
-
-              {error && (
-                <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm text-center">
-                  {error}
+            {/* Rebook Step */}
+            {rebookData ? (
+              <div className="space-y-5">
+                {/* Success banner */}
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+                  <CheckCircleIcon className="w-6 h-6 text-emerald-500 flex-shrink-0" />
+                  <p className="text-sm font-medium text-emerald-700">
+                    Check-in saved!
+                  </p>
                 </div>
-              )}
 
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full mt-2"
-                disabled={isPending}
-              >
-                {isPending ? "Saving..." : "Check In"}
-              </Button>
-            </form>
+                {rebookSuccess ? (
+                  <div className="text-center py-4">
+                    <CheckCircleIcon className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-sage-700">
+                      Rebooked {rebookData.petName}!
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-sage-600">
+                      Rebook <span className="font-semibold text-sage-800">{rebookData.petName}</span> for their next visit?
+                    </p>
+
+                    {/* Date picker */}
+                    <div>
+                      <label htmlFor="rebookDate" className="block text-sm font-medium text-sage-700 mb-1.5">
+                        Date & Time
+                      </label>
+                      <input
+                        id="rebookDate"
+                        type="datetime-local"
+                        value={rebookDate}
+                        onChange={(e) => setRebookDate(e.target.value)}
+                        className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                      />
+                      <p className="mt-1 text-xs text-sage-400">
+                        Default: 6 weeks from today
+                      </p>
+                    </div>
+
+                    {/* Service (read-only) */}
+                    <div>
+                      <label className="block text-sm font-medium text-sage-700 mb-1.5">
+                        Service
+                      </label>
+                      <div className="px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-sage-50 text-sage-600">
+                        {rebookData.service}
+                      </div>
+                    </div>
+
+                    {error && (
+                      <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm text-center">
+                        {error}
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    <div className="flex gap-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="lg"
+                        className="flex-1"
+                        onClick={handleClose}
+                      >
+                        Skip
+                      </Button>
+                      <Button
+                        type="button"
+                        size="lg"
+                        className="flex-1"
+                        onClick={handleRebook}
+                        disabled={rebookPending}
+                      >
+                        {rebookPending ? "Booking..." : "Rebook"}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              /* Check-In Form */
+              <form action={handleSubmit} className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="petName"
+                    className="block text-sm font-medium text-sage-700 mb-1.5"
+                  >
+                    Pet Name
+                  </label>
+                  <input
+                    id="petName"
+                    name="petName"
+                    type="text"
+                    required
+                    autoFocus
+                    placeholder="e.g. Buddy"
+                    className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="ownerName"
+                    className="block text-sm font-medium text-sage-700 mb-1.5"
+                  >
+                    Owner Name
+                  </label>
+                  <input
+                    id="ownerName"
+                    name="ownerName"
+                    type="text"
+                    required
+                    placeholder="e.g. Sarah Johnson"
+                    className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="ownerPhone"
+                    className="block text-sm font-medium text-sage-700 mb-1.5"
+                  >
+                    Owner Phone
+                  </label>
+                  <input
+                    id="ownerPhone"
+                    name="ownerPhone"
+                    type="tel"
+                    required
+                    placeholder="e.g. 555-123-4567"
+                    className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="breed"
+                    className="block text-sm font-medium text-sage-700 mb-1.5"
+                  >
+                    Breed
+                  </label>
+                  <input
+                    id="breed"
+                    name="breed"
+                    type="text"
+                    placeholder="e.g. Golden Retriever"
+                    className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="dateOfBirth"
+                    className="block text-sm font-medium text-sage-700 mb-1.5"
+                  >
+                    Date of Birth
+                  </label>
+                  <input
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    type="date"
+                    max={new Date().toISOString().split("T")[0]}
+                    className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                  />
+                </div>
+
+                {error && (
+                  <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm text-center">
+                    {error}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full mt-2"
+                  disabled={isPending}
+                >
+                  {isPending ? "Saving..." : "Check In"}
+                </Button>
+              </form>
+            )}
           </div>
         </div>
       )}

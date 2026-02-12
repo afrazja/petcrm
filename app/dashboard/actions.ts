@@ -9,7 +9,16 @@ type ActionResult = {
   error?: string;
 };
 
-export async function quickCheckIn(formData: FormData): Promise<ActionResult> {
+export type ActionResultWithRebook = ActionResult & {
+  rebookData?: {
+    petId: string;
+    petName: string;
+    clientId: string;
+    service: string;
+  };
+};
+
+export async function quickCheckIn(formData: FormData): Promise<ActionResultWithRebook> {
   const petName = (formData.get("petName") as string)?.trim();
   const ownerName = (formData.get("ownerName") as string)?.trim();
   const ownerPhone = (formData.get("ownerPhone") as string)?.trim();
@@ -138,7 +147,15 @@ export async function quickCheckIn(formData: FormData): Promise<ActionResult> {
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/clients");
-  return { success: true };
+  return {
+    success: true,
+    rebookData: {
+      petId,
+      petName,
+      clientId,
+      service: "Grooming",
+    },
+  };
 }
 
 export async function saveHealthMapMarker(
@@ -409,7 +426,7 @@ export async function deletePet(petId: string): Promise<ActionResult> {
   return { success: true };
 }
 
-export async function addAppointment(formData: FormData): Promise<ActionResult> {
+export async function addAppointment(formData: FormData): Promise<ActionResultWithRebook> {
   const petId = (formData.get("petId") as string)?.trim();
   const service = (formData.get("service") as string)?.trim();
   const priceStr = (formData.get("price") as string)?.trim();
@@ -426,10 +443,10 @@ export async function addAppointment(formData: FormData): Promise<ActionResult> 
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return { success: false, error: "You must be logged in." };
 
-  // Get client_id from pet
+  // Get client_id and pet name from pet
   const { data: pet } = await supabase
     .from("pets")
-    .select("client_id")
+    .select("client_id, name")
     .eq("id", petId)
     .single();
 
@@ -446,6 +463,40 @@ export async function addAppointment(formData: FormData): Promise<ActionResult> 
   });
 
   if (insertError) return { success: false, error: "Failed to create appointment." };
+
+  revalidatePath("/dashboard/appointments");
+  revalidatePath("/dashboard");
+  return {
+    success: true,
+    rebookData: {
+      petId,
+      petName: pet.name,
+      clientId: pet.client_id,
+      service,
+    },
+  };
+}
+
+export async function rebookAppointment(data: {
+  petId: string;
+  clientId: string;
+  service: string;
+  scheduledAt: string;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const { error: insertError } = await supabase.from("appointments").insert({
+    pet_id: data.petId,
+    client_id: data.clientId,
+    profile_id: user.id,
+    service: data.service,
+    price: 0,
+    completed_at: new Date(data.scheduledAt).toISOString(),
+  });
+
+  if (insertError) return { success: false, error: "Failed to create rebooking." };
 
   revalidatePath("/dashboard/appointments");
   revalidatePath("/dashboard");
