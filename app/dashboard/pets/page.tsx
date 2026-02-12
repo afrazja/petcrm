@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PawPrintIcon, ChevronLeftIcon } from "@/components/icons";
+import AddPetModal from "./components/AddPetModal";
 
 export default async function PetsPage() {
   const supabase = await createClient();
@@ -110,6 +111,8 @@ export default async function PetsPage() {
           </div>
         </div>
       )}
+
+      <AddPetModal />
     </div>
   );
 }

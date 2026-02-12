@@ -252,3 +252,138 @@ export async function logVisit(
   revalidatePath("/dashboard/clients");
   return { success: true };
 }
+
+export async function addClient(formData: FormData): Promise<ActionResult> {
+  const fullName = (formData.get("fullName") as string)?.trim();
+  const phone = (formData.get("phone") as string)?.trim();
+  const email = (formData.get("email") as string)?.trim();
+  const notes = (formData.get("notes") as string)?.trim();
+
+  if (!fullName) {
+    return { success: false, error: "Full name is required." };
+  }
+  if (!phone) {
+    return { success: false, error: "Phone number is required." };
+  }
+
+  const normalizedPhone = phone.replace(/\D/g, "");
+  if (normalizedPhone.length < 7) {
+    return { success: false, error: "Please enter a valid phone number." };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: "You must be logged in." };
+  }
+
+  // Check for duplicate by phone
+  const { data: existing } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("profile_id", user.id)
+    .eq("phone", normalizedPhone)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    return { success: false, error: "A client with this phone number already exists." };
+  }
+
+  const { error: insertError } = await supabase.from("clients").insert({
+    profile_id: user.id,
+    full_name: fullName,
+    phone: normalizedPhone,
+    email: email || null,
+    notes: notes || null,
+  });
+
+  if (insertError) {
+    return { success: false, error: "Failed to add client." };
+  }
+
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function addPet(formData: FormData): Promise<ActionResult> {
+  const petName = (formData.get("petName") as string)?.trim();
+  const ownerPhone = (formData.get("ownerPhone") as string)?.trim();
+  const breed = (formData.get("breed") as string)?.trim();
+  const dateOfBirth = (formData.get("dateOfBirth") as string)?.trim();
+
+  if (!petName) {
+    return { success: false, error: "Pet name is required." };
+  }
+  if (!ownerPhone) {
+    return { success: false, error: "Owner phone is required." };
+  }
+
+  const normalizedPhone = ownerPhone.replace(/\D/g, "");
+  if (normalizedPhone.length < 7) {
+    return { success: false, error: "Please enter a valid phone number." };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: "You must be logged in." };
+  }
+
+  // Find client by phone
+  const { data: clients } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("profile_id", user.id)
+    .eq("phone", normalizedPhone)
+    .limit(1);
+
+  if (!clients || clients.length === 0) {
+    return {
+      success: false,
+      error: "No client found with this phone number. Add the client first.",
+    };
+  }
+
+  const clientId = clients[0].id;
+
+  // Check for duplicate pet (same name + client)
+  const { data: existingPets } = await supabase
+    .from("pets")
+    .select("id")
+    .eq("client_id", clientId)
+    .ilike("name", petName)
+    .limit(1);
+
+  if (existingPets && existingPets.length > 0) {
+    return {
+      success: false,
+      error: "This client already has a pet with that name.",
+    };
+  }
+
+  const { error: insertError } = await supabase.from("pets").insert({
+    client_id: clientId,
+    name: petName,
+    breed: breed || null,
+    date_of_birth: dateOfBirth || null,
+  });
+
+  if (insertError) {
+    return { success: false, error: "Failed to add pet." };
+  }
+
+  revalidatePath("/dashboard/pets");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
