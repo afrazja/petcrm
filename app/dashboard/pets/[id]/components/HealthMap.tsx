@@ -179,23 +179,79 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
     [markers, petId]
   );
 
+  // Draw markers directly on canvas (reliable, no SVG serialization issues)
+  const drawMarkersOnCanvas = useCallback(
+    (ctx: CanvasRenderingContext2D, scale: number, onPhoto: boolean) => {
+      for (const marker of markers) {
+        const cx = marker.x * SVG_WIDTH * scale;
+        const cy = marker.y * SVG_HEIGHT * scale;
+
+        // Outer glow ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, 12 * scale, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(239, 68, 68, 0.15)";
+        ctx.fill();
+
+        // Main marker circle
+        ctx.beginPath();
+        ctx.arc(cx, cy, 8 * scale, 0, Math.PI * 2);
+        ctx.fillStyle = "#ef4444";
+        ctx.fill();
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2 * scale;
+        ctx.stroke();
+
+        // Note label
+        if (marker.note) {
+          const label =
+            marker.note.length > 12
+              ? marker.note.slice(0, 12) + "..."
+              : marker.note;
+          const labelAbove = cy > 24 * scale;
+          const ly = labelAbove ? cy - 14 * scale : cy + 22 * scale;
+          const lx = Math.max(30 * scale, Math.min(SVG_WIDTH * scale - 30 * scale, cx));
+
+          ctx.font = `${10 * scale}px system-ui, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+
+          // Background pill for readability
+          const textWidth = ctx.measureText(label).width;
+          const px = 4 * scale;
+          const py = 3 * scale;
+          ctx.fillStyle = onPhoto ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.85)";
+          ctx.beginPath();
+          const rx = lx - textWidth / 2 - px;
+          const ry = ly - py - 5 * scale;
+          const rw = textWidth + px * 2;
+          const rh = 10 * scale + py * 2;
+          ctx.roundRect(rx, ry, rw, rh, 4 * scale);
+          ctx.fill();
+
+          ctx.fillStyle = onPhoto ? "#ffffff" : "#4a5e45";
+          ctx.fillText(label, lx, ly);
+        }
+      }
+    },
+    [markers]
+  );
+
   const saveToGallery = useCallback(async () => {
-    const svg = svgRef.current;
-    if (!svg || markers.length === 0) return;
+    if (markers.length === 0) return;
 
     setIsSaving(true);
     setSaveStatus(null);
 
     try {
+      const scale = 2;
       const canvas = document.createElement("canvas");
-      canvas.width = SVG_WIDTH * 2;
-      canvas.height = SVG_HEIGHT * 2;
+      canvas.width = SVG_WIDTH * scale;
+      canvas.height = SVG_HEIGHT * scale;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Canvas not supported");
 
-      // Step 1: Draw background (photo or white)
+      // Step 1: Draw background
       if (backgroundUrl) {
-        // Load the background photo onto canvas first
         const bgImg = new window.Image();
         bgImg.crossOrigin = "anonymous";
         await new Promise<void>((resolve, reject) => {
@@ -204,78 +260,57 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
           bgImg.src = backgroundUrl;
         });
         // Cover-fit the image into the canvas
-        const scale = Math.max(canvas.width / bgImg.width, canvas.height / bgImg.height);
-        const w = bgImg.width * scale;
-        const h = bgImg.height * scale;
+        const imgScale = Math.max(canvas.width / bgImg.width, canvas.height / bgImg.height);
+        const w = bgImg.width * imgScale;
+        const h = bgImg.height * imgScale;
         ctx.drawImage(bgImg, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
       } else {
+        // White background + dog outline via SVG
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
 
-      // Step 2: Clone SVG for markers overlay (remove background elements)
-      const clone = svg.cloneNode(true) as SVGSVGElement;
-      clone.setAttribute("width", String(SVG_WIDTH * 2));
-      clone.setAttribute("height", String(SVG_HEIGHT * 2));
-      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+        // Draw the dog outline from SVG
+        const svg = svgRef.current;
+        if (svg) {
+          const clone = svg.cloneNode(true) as SVGSVGElement;
+          clone.setAttribute("width", String(canvas.width));
+          clone.setAttribute("height", String(canvas.height));
+          clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+          // Remove markers and image elements — only keep dog outline
+          clone.querySelectorAll("[data-marker]").forEach((el) => el.remove());
+          clone.querySelectorAll("image").forEach((el) => el.remove());
+          // Remove the pulsing new-marker preview circle (last circle without data-marker)
+          clone.querySelectorAll(":scope > circle").forEach((el) => el.remove());
+          // Resolve currentColor
+          clone.querySelectorAll("[stroke='currentColor']").forEach((el) => {
+            el.setAttribute("stroke", "#b0bfab");
+          });
+          clone.querySelectorAll("[fill='currentColor']").forEach((el) => {
+            el.setAttribute("fill", "#b0bfab");
+          });
+          // Remove text labels (we draw them with canvas instead)
+          clone.querySelectorAll("text").forEach((el) => el.remove());
+          // Remove class attributes
+          clone.querySelectorAll("[class]").forEach((el) => el.removeAttribute("class"));
 
-      // Remove the background from the SVG clone (photo <image> or <DogSvg> <g>)
-      // If photo bg: remove the <image> element
-      clone.querySelectorAll("image").forEach((el) => el.remove());
-      // If dog bg: remove the first <g> (DogSvg) — but only when we already drew white bg
-      if (!backgroundUrl) {
-        // Keep the dog outline in SVG for non-photo mode
-        clone.querySelectorAll("[stroke='currentColor']").forEach((el) => {
-          el.setAttribute("stroke", "#b0bfab");
-        });
-        clone.querySelectorAll("[fill='currentColor']").forEach((el) => {
-          el.setAttribute("fill", "#b0bfab");
-        });
-      } else {
-        // Remove the dog SVG group entirely since we have a photo
-        const firstG = clone.querySelector("g");
-        if (firstG && !firstG.hasAttribute("data-marker")) {
-          firstG.remove();
+          const serializer = new XMLSerializer();
+          const svgString = serializer.serializeToString(clone);
+          const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+          const svgUrl = URL.createObjectURL(svgBlob);
+
+          const dogImg = new window.Image();
+          await new Promise<void>((resolve, reject) => {
+            dogImg.onload = () => resolve();
+            dogImg.onerror = () => reject(new Error("Failed to load dog outline"));
+            dogImg.src = svgUrl;
+          });
+          ctx.drawImage(dogImg, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(svgUrl);
         }
       }
 
-      // Resolve Tailwind CSS classes to inline styles for text elements
-      clone.querySelectorAll("text").forEach((textEl) => {
-        textEl.setAttribute("fill", backgroundUrl ? "#ffffff" : "#4a5e45");
-        textEl.setAttribute("font-size", "10");
-        textEl.setAttribute("font-weight", "500");
-        textEl.setAttribute("font-family", "system-ui, sans-serif");
-        textEl.removeAttribute("class");
-      });
-
-      // Remove CSS class attributes
-      clone.querySelectorAll("[class]").forEach((el) => {
-        el.removeAttribute("class");
-      });
-
-      // Add transparent background rect so the SVG renders properly
-      const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      bgRect.setAttribute("width", "100%");
-      bgRect.setAttribute("height", "100%");
-      bgRect.setAttribute("fill", backgroundUrl ? "transparent" : "white");
-      clone.insertBefore(bgRect, clone.firstChild);
-
-      // Serialize SVG overlay to image
-      const serializer = new XMLSerializer();
-      const svgString = serializer.serializeToString(clone);
-      const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-      const svgUrl = URL.createObjectURL(svgBlob);
-
-      const overlayImg = new window.Image();
-      await new Promise<void>((resolve, reject) => {
-        overlayImg.onload = () => resolve();
-        overlayImg.onerror = () => reject(new Error("Failed to load SVG overlay"));
-        overlayImg.src = svgUrl;
-      });
-
-      // Draw SVG markers overlay on top of background
-      ctx.drawImage(overlayImg, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(svgUrl);
+      // Step 2: Draw markers directly on canvas
+      drawMarkersOnCanvas(ctx, scale, !!backgroundUrl);
 
       // Convert canvas to blob
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -295,7 +330,7 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
     } finally {
       setIsSaving(false);
     }
-  }, [markers, petId, backgroundUrl]);
+  }, [markers, petId, backgroundUrl, drawMarkersOnCanvas]);
 
   // Get pixel position for popup from fraction coordinates
   function getPixelPosition(fracX: number, fracY: number) {
@@ -468,19 +503,29 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
                     strokeDasharray="4 2"
                   />
                 )}
-                {/* Note label */}
-                {marker.note && selectedMarkerId !== marker.id && (
-                  <text
-                    x={marker.x * SVG_WIDTH}
-                    y={marker.y * SVG_HEIGHT - 14}
-                    textAnchor="middle"
-                    className="text-[10px] fill-sage-700 font-medium pointer-events-none"
-                  >
-                    {marker.note.length > 12
-                      ? marker.note.slice(0, 12) + "..."
-                      : marker.note}
-                  </text>
-                )}
+                {/* Note label — clamped inside SVG bounds */}
+                {marker.note && selectedMarkerId !== marker.id && (() => {
+                  const mx = marker.x * SVG_WIDTH;
+                  const my = marker.y * SVG_HEIGHT;
+                  // Show label below marker if too close to top, otherwise above
+                  const labelAbove = my > 24;
+                  const ly = labelAbove ? my - 14 : my + 22;
+                  // Clamp horizontal to keep text inside SVG
+                  const lx = Math.max(30, Math.min(SVG_WIDTH - 30, mx));
+                  const label = marker.note.length > 12
+                    ? marker.note.slice(0, 12) + "..."
+                    : marker.note;
+                  return (
+                    <text
+                      x={lx}
+                      y={ly}
+                      textAnchor="middle"
+                      className={`text-[10px] font-medium pointer-events-none ${backgroundUrl ? "fill-white" : "fill-sage-700"}`}
+                    >
+                      {label}
+                    </text>
+                  );
+                })()}
               </g>
             ))}
 
