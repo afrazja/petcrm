@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useTransition, useEffect } from "react";
 import type { HealthMapMarker } from "@/lib/types/database";
 import { saveHealthMapMarker, deleteHealthMapMarker, uploadPetPhoto } from "@/app/dashboard/actions";
-import { CameraIcon, CheckCircleIcon } from "@/components/icons";
+import { CameraIcon, CheckCircleIcon, XIcon } from "@/components/icons";
 import DogSvg from "./DogSvg";
 import MarkerPopup from "./MarkerPopup";
 
@@ -25,6 +25,8 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
   const [isPending, startTransition] = useTransition();
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved" | "error" | null>(null);
+  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -34,6 +36,16 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
     const timer = setTimeout(() => setSaveStatus(null), 2000);
     return () => clearTimeout(timer);
   }, [saveStatus]);
+
+  // Listen for custom event from gallery "Use on Map" button (mobile fallback)
+  useEffect(() => {
+    function handleSetBg(e: Event) {
+      const url = (e as CustomEvent).detail?.url;
+      if (url) setBackgroundUrl(url);
+    }
+    window.addEventListener("healthmap:setbg", handleSetBg);
+    return () => window.removeEventListener("healthmap:setbg", handleSetBg);
+  }, []);
 
   // Shared logic: convert client coordinates to SVG fraction coordinates
   const placeMarkerAt = useCallback((clientX: number, clientY: number) => {
@@ -175,69 +187,95 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
     setSaveStatus(null);
 
     try {
-      // Clone SVG so we can modify it without affecting the DOM
-      const clone = svg.cloneNode(true) as SVGSVGElement;
-
-      // Set explicit dimensions and a white background
-      clone.setAttribute("width", String(SVG_WIDTH * 2));
-      clone.setAttribute("height", String(SVG_HEIGHT * 2));
-      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
-      // Add white background rect as the first child
-      const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      bg.setAttribute("width", "100%");
-      bg.setAttribute("height", "100%");
-      bg.setAttribute("fill", "white");
-      clone.insertBefore(bg, clone.firstChild);
-
-      // Replace currentColor with the actual sage color used in the SVG
-      clone.querySelectorAll("[stroke='currentColor']").forEach((el) => {
-        el.setAttribute("stroke", "#b0bfab");
-      });
-      clone.querySelectorAll("[fill='currentColor']").forEach((el) => {
-        el.setAttribute("fill", "#b0bfab");
-      });
-
-      // Resolve Tailwind CSS classes to inline styles for text elements
-      clone.querySelectorAll("text").forEach((textEl) => {
-        textEl.setAttribute("fill", "#4a5e45");
-        textEl.setAttribute("font-size", "10");
-        textEl.setAttribute("font-weight", "500");
-        textEl.setAttribute("font-family", "system-ui, sans-serif");
-        textEl.removeAttribute("class");
-      });
-
-      // Remove CSS class attributes that won't render outside the page
-      clone.querySelectorAll("[class]").forEach((el) => {
-        el.removeAttribute("class");
-      });
-
-      // Serialize to XML
-      const serializer = new XMLSerializer();
-      const svgString = serializer.serializeToString(clone);
-      const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-      const url = URL.createObjectURL(svgBlob);
-
-      // Draw SVG onto a canvas
-      const img = new window.Image();
-      img.crossOrigin = "anonymous";
-
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error("Failed to load SVG image"));
-        img.src = url;
-      });
-
       const canvas = document.createElement("canvas");
       canvas.width = SVG_WIDTH * 2;
       canvas.height = SVG_HEIGHT * 2;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Canvas not supported");
 
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
+      // Step 1: Draw background (photo or white)
+      if (backgroundUrl) {
+        // Load the background photo onto canvas first
+        const bgImg = new window.Image();
+        bgImg.crossOrigin = "anonymous";
+        await new Promise<void>((resolve, reject) => {
+          bgImg.onload = () => resolve();
+          bgImg.onerror = () => reject(new Error("Failed to load background"));
+          bgImg.src = backgroundUrl;
+        });
+        // Cover-fit the image into the canvas
+        const scale = Math.max(canvas.width / bgImg.width, canvas.height / bgImg.height);
+        const w = bgImg.width * scale;
+        const h = bgImg.height * scale;
+        ctx.drawImage(bgImg, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+      } else {
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Step 2: Clone SVG for markers overlay (remove background elements)
+      const clone = svg.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute("width", String(SVG_WIDTH * 2));
+      clone.setAttribute("height", String(SVG_HEIGHT * 2));
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+      // Remove the background from the SVG clone (photo <image> or <DogSvg> <g>)
+      // If photo bg: remove the <image> element
+      clone.querySelectorAll("image").forEach((el) => el.remove());
+      // If dog bg: remove the first <g> (DogSvg) — but only when we already drew white bg
+      if (!backgroundUrl) {
+        // Keep the dog outline in SVG for non-photo mode
+        clone.querySelectorAll("[stroke='currentColor']").forEach((el) => {
+          el.setAttribute("stroke", "#b0bfab");
+        });
+        clone.querySelectorAll("[fill='currentColor']").forEach((el) => {
+          el.setAttribute("fill", "#b0bfab");
+        });
+      } else {
+        // Remove the dog SVG group entirely since we have a photo
+        const firstG = clone.querySelector("g");
+        if (firstG && !firstG.hasAttribute("data-marker")) {
+          firstG.remove();
+        }
+      }
+
+      // Resolve Tailwind CSS classes to inline styles for text elements
+      clone.querySelectorAll("text").forEach((textEl) => {
+        textEl.setAttribute("fill", backgroundUrl ? "#ffffff" : "#4a5e45");
+        textEl.setAttribute("font-size", "10");
+        textEl.setAttribute("font-weight", "500");
+        textEl.setAttribute("font-family", "system-ui, sans-serif");
+        textEl.removeAttribute("class");
+      });
+
+      // Remove CSS class attributes
+      clone.querySelectorAll("[class]").forEach((el) => {
+        el.removeAttribute("class");
+      });
+
+      // Add transparent background rect so the SVG renders properly
+      const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bgRect.setAttribute("width", "100%");
+      bgRect.setAttribute("height", "100%");
+      bgRect.setAttribute("fill", backgroundUrl ? "transparent" : "white");
+      clone.insertBefore(bgRect, clone.firstChild);
+
+      // Serialize SVG overlay to image
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(clone);
+      const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+      const svgUrl = URL.createObjectURL(svgBlob);
+
+      const overlayImg = new window.Image();
+      await new Promise<void>((resolve, reject) => {
+        overlayImg.onload = () => resolve();
+        overlayImg.onerror = () => reject(new Error("Failed to load SVG overlay"));
+        overlayImg.src = svgUrl;
+      });
+
+      // Draw SVG markers overlay on top of background
+      ctx.drawImage(overlayImg, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(svgUrl);
 
       // Convert canvas to blob
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -257,7 +295,7 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
     } finally {
       setIsSaving(false);
     }
-  }, [markers, petId]);
+  }, [markers, petId, backgroundUrl]);
 
   // Get pixel position for popup from fraction coordinates
   function getPixelPosition(fracX: number, fracY: number) {
@@ -282,7 +320,9 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
           <div>
             <h3 className="text-lg font-semibold text-sage-700">Health Map</h3>
             <p className="text-sm text-sage-400">
-              Tap on the dog to place a marker
+              {backgroundUrl
+                ? "Tap to place markers on the photo"
+                : "Tap on the dog to place a marker"}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -318,7 +358,54 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
           </div>
         </div>
 
-        <div className="relative bg-sage-50/50 rounded-xl border border-sage-100 overflow-hidden">
+        <div
+          className={`relative rounded-xl border-2 overflow-hidden transition-colors ${
+            isDragOver
+              ? "border-dashed border-sage-400 bg-sage-100/50"
+              : "border-solid border-sage-100 bg-sage-50/50"
+          }`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+          }}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            setIsDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            // Only leave if we're actually leaving the container
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setIsDragOver(false);
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragOver(false);
+            const url = e.dataTransfer.getData("text/plain");
+            if (url && url.startsWith("http")) {
+              setBackgroundUrl(url);
+            }
+          }}
+        >
+          {/* Drop overlay */}
+          {isDragOver && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-sage-100/70 pointer-events-none">
+              <p className="text-sm font-medium text-sage-600">Drop photo here</p>
+            </div>
+          )}
+
+          {/* Clear background button */}
+          {backgroundUrl && !isDragOver && (
+            <button
+              onClick={() => setBackgroundUrl(null)}
+              className="absolute top-2 right-2 z-20 p-1.5 rounded-lg bg-black/50 text-white/80 hover:bg-black/70 hover:text-white transition-all cursor-pointer"
+              aria-label="Remove photo background"
+              title="Back to dog outline"
+            >
+              <XIcon className="w-4 h-4" />
+            </button>
+          )}
+
           <svg
             ref={svgRef}
             viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
@@ -326,8 +413,19 @@ export default function HealthMap({ petId, initialMarkers }: HealthMapProps) {
             onClick={handleSvgClick}
             onTouchEnd={handleSvgTouch}
           >
-            {/* Dog outline */}
-            <DogSvg />
+            {/* Background: photo or dog outline */}
+            {backgroundUrl ? (
+              <image
+                href={backgroundUrl}
+                x="0"
+                y="0"
+                width={SVG_WIDTH}
+                height={SVG_HEIGHT}
+                preserveAspectRatio="xMidYMid slice"
+              />
+            ) : (
+              <DogSvg />
+            )}
 
             {/* Rendered markers */}
             {markers.map((marker) => (

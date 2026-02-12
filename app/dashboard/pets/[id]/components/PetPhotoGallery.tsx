@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { CameraIcon, PlusIcon, XIcon, TrashIcon, CheckCircleIcon } from "@/components/icons";
+import { CameraIcon, PlusIcon, XIcon, TrashIcon, CheckCircleIcon, PencilIcon } from "@/components/icons";
 import { uploadPetPhoto, deletePetPhoto } from "@/app/dashboard/actions";
 
 type Photo = {
@@ -267,7 +267,15 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {photos.map((photo) => (
-            <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden bg-sage-50 group">
+            <div
+              key={photo.id}
+              className="relative aspect-square rounded-xl overflow-hidden bg-sage-50 group"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/plain", photo.url);
+                e.dataTransfer.effectAllowed = "copy";
+              }}
+            >
               <button
                 onClick={() => setLightboxPhoto(photo)}
                 className="absolute inset-0 cursor-pointer"
@@ -302,16 +310,30 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteConfirmId(photo.id);
-                  }}
-                  className="absolute top-1.5 right-1.5 p-1.5 rounded-lg bg-black/40 text-white/80 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all cursor-pointer z-10"
-                  aria-label="Delete photo"
-                >
-                  <TrashIcon className="w-3.5 h-3.5" />
-                </button>
+                <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
+                  {/* Use on Map button (mobile fallback for drag) */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.dispatchEvent(new CustomEvent("healthmap:setbg", { detail: { url: photo.url } }));
+                    }}
+                    className="p-1.5 rounded-lg bg-black/40 text-white/80 hover:bg-sage-500 hover:text-white transition-all cursor-pointer"
+                    aria-label="Use on health map"
+                    title="Use on Health Map"
+                  >
+                    <PencilIcon className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteConfirmId(photo.id);
+                    }}
+                    className="p-1.5 rounded-lg bg-black/40 text-white/80 hover:bg-red-500 hover:text-white transition-all cursor-pointer"
+                    aria-label="Delete photo"
+                  >
+                    <TrashIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
 
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/40 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
