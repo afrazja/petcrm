@@ -1,14 +1,21 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { CameraIcon, PlusIcon, XIcon, TrashIcon } from "@/components/icons";
+import { CameraIcon, PlusIcon, XIcon, TrashIcon, CheckCircleIcon } from "@/components/icons";
 import { uploadPetPhoto, deletePetPhoto } from "@/app/dashboard/actions";
 
 type Photo = {
   id: string;
   url: string;
   createdAt: string;
+};
+
+type UploadNotification = {
+  id: string;
+  fileName: string;
+  status: "uploading" | "success" | "failed";
+  error?: string;
 };
 
 type Props = {
@@ -18,11 +25,29 @@ type Props = {
 
 export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<UploadNotification[]>([]);
   const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null);
   const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isUploading = notifications.some((n) => n.status === "uploading");
+
+  // Auto-dismiss successful notifications after 3 seconds
+  useEffect(() => {
+    const successIds = notifications
+      .filter((n) => n.status === "success")
+      .map((n) => n.id);
+
+    if (successIds.length === 0) return;
+
+    const timer = setTimeout(() => {
+      setNotifications((prev) =>
+        prev.filter((n) => !successIds.includes(n.id))
+      );
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [notifications]);
 
   // Close lightbox on Escape
   useEffect(() => {
@@ -34,26 +59,49 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [lightboxPhoto]);
 
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    setUploading(true);
-    setError(null);
-
     for (const file of Array.from(files)) {
+      const notifId = crypto.randomUUID();
+      const fileName = file.name.length > 25
+        ? file.name.slice(0, 22) + "..."
+        : file.name;
+
+      // Add uploading notification
+      setNotifications((prev) => [
+        ...prev,
+        { id: notifId, fileName, status: "uploading" },
+      ]);
+
       const formData = new FormData();
       formData.set("file", file);
 
       const result = await uploadPetPhoto(petId, formData);
+
       if (result.success && result.photo) {
         setPhotos((prev) => [result.photo!, ...prev]);
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notifId ? { ...n, status: "success" as const } : n
+          )
+        );
       } else {
-        setError(result.error ?? "Upload failed.");
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notifId
+              ? { ...n, status: "failed" as const, error: result.error ?? "Upload failed." }
+              : n
+          )
+        );
       }
     }
 
-    setUploading(false);
     // Reset file input so same file can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -65,7 +113,15 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
       setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
       setLightboxPhoto(null);
     } else {
-      setError(result.error ?? "Delete failed.");
+      setNotifications((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          fileName: "Photo",
+          status: "failed",
+          error: result.error ?? "Delete failed.",
+        },
+      ]);
     }
     setDeleting(false);
   }
@@ -85,7 +141,7 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
+          disabled={isUploading}
           className="w-9 h-9 rounded-lg bg-sage-400 text-white flex items-center justify-center hover:bg-sage-500 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
           aria-label="Upload photo"
         >
@@ -101,18 +157,63 @@ export default function PetPhotoGallery({ petId, initialPhotos }: Props) {
         />
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm text-center mb-4">
-          {error}
-        </div>
-      )}
+      {/* Upload notifications */}
+      {notifications.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {notifications.map((notif) => (
+            <div
+              key={notif.id}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                notif.status === "uploading"
+                  ? "bg-sage-50 text-sage-600 border border-sage-100"
+                  : notif.status === "success"
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                  : "bg-red-50 text-red-700 border border-red-100"
+              }`}
+            >
+              {/* Status icon */}
+              {notif.status === "uploading" && (
+                <div className="w-4 h-4 border-2 border-sage-300 border-t-sage-500 rounded-full animate-spin flex-shrink-0" />
+              )}
+              {notif.status === "success" && (
+                <CheckCircleIcon className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+              )}
+              {notif.status === "failed" && (
+                <div className="w-4 h-4 rounded-full bg-red-200 flex items-center justify-center flex-shrink-0">
+                  <XIcon className="w-3 h-3 text-red-600" />
+                </div>
+              )}
 
-      {/* Uploading indicator */}
-      {uploading && (
-        <div className="flex items-center gap-2 text-sm text-sage-500 mb-4">
-          <div className="w-4 h-4 border-2 border-sage-300 border-t-sage-500 rounded-full animate-spin" />
-          Uploading...
+              {/* Text */}
+              <div className="flex-1 min-w-0">
+                <p className="truncate font-medium">{notif.fileName}</p>
+                {notif.status === "uploading" && (
+                  <p className="text-xs opacity-70">Uploading...</p>
+                )}
+                {notif.status === "success" && (
+                  <p className="text-xs opacity-70">Uploaded</p>
+                )}
+                {notif.status === "failed" && (
+                  <p className="text-xs opacity-70">{notif.error}</p>
+                )}
+              </div>
+
+              {/* Dismiss button — shown for failed and success */}
+              {notif.status !== "uploading" && (
+                <button
+                  onClick={() => dismissNotification(notif.id)}
+                  className={`p-1 rounded-md transition-colors flex-shrink-0 cursor-pointer ${
+                    notif.status === "failed"
+                      ? "text-red-400 hover:bg-red-100 hover:text-red-600"
+                      : "text-emerald-400 hover:bg-emerald-100 hover:text-emerald-600"
+                  }`}
+                  aria-label="Dismiss"
+                >
+                  <XIcon className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
