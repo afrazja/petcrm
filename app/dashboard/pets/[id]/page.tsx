@@ -80,10 +80,27 @@ export default async function PetProfilePage({
   const isVaccineExpired =
     vaccineExpiry && vaccineExpiry < new Date();
 
+  // Format phone for display: 5551234567 → (555) 123-4567
+  const formatPhone = (phone: string) => {
+    if (phone.length === 10) {
+      return `(${phone.slice(0, 3)}) ${phone.slice(3, 6)}-${phone.slice(6)}`;
+    }
+    if (phone.length === 11 && phone.startsWith("1")) {
+      return `+1 (${phone.slice(1, 4)}) ${phone.slice(4, 7)}-${phone.slice(7)}`;
+    }
+    return phone;
+  };
+
   // Build WhatsApp pickup link — $0 API cost, just a wa.me URL
+  // wa.me requires E.164 format (country code + number, no +)
+  // Prepend "1" for 10-digit US/Canada numbers; leave others as-is
   const pickupMessage = `Hi! ${pet.name} is all finished and ready to go home! 🐾`;
-  const whatsappUrl = client.phone
-    ? `https://wa.me/${client.phone}?text=${encodeURIComponent(pickupMessage)}`
+  let whatsappPhone = client.phone;
+  if (whatsappPhone && whatsappPhone.length === 10) {
+    whatsappPhone = `1${whatsappPhone}`;
+  }
+  const whatsappUrl = whatsappPhone
+    ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(pickupMessage)}`
     : null;
 
   return (
@@ -115,7 +132,7 @@ export default async function PetProfilePage({
               {client.phone && (
                 <span className="text-sage-500 flex items-center gap-1">
                   <PhoneIcon className="w-3.5 h-3.5" />
-                  {client.phone}
+                  {formatPhone(client.phone!)}
                 </span>
               )}
             </div>
