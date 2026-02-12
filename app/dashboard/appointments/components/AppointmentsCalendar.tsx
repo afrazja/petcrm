@@ -471,6 +471,16 @@ export default function AppointmentsCalendar({ appointments, month, year, servic
         </div>
       )}
 
+      {/* Empty month hint */}
+      {appointments.length === 0 && selectedDay === null && (
+        <div className="bg-white rounded-2xl shadow-sm border border-warm-gray/50 p-8 text-center mb-4">
+          <CalendarIcon className="w-12 h-12 text-sage-300 mx-auto mb-3" />
+          <p className="text-sage-500 text-sm">
+            No appointments this month. Tap the <span className="font-medium text-sage-600">+</span> button to schedule one.
+          </p>
+        </div>
+      )}
+
       {/* Summary */}
       <div className="bg-white rounded-2xl shadow-sm border border-warm-gray/50 p-4">
         <div className="flex items-center justify-between text-sm">

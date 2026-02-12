@@ -302,6 +302,8 @@ export default async function DashboardPage() {
     { label: "This Month", value: `$${monthRevenue.toFixed(2)}`, icon: DollarIcon },
   ];
 
+  const isNewUser = (clientCount ?? 0) === 0 && (petCount ?? 0) === 0;
+
   return (
     <div>
       <div className="mb-8">
@@ -310,6 +312,23 @@ export default async function DashboardPage() {
           Here&apos;s what&apos;s happening with your grooming business today.
         </p>
       </div>
+
+      {/* Getting Started — shown only for brand-new users */}
+      {isNewUser && (
+        <div className="bg-sage-50/50 rounded-2xl border border-sage-100 p-6 mb-8">
+          <h3 className="text-lg font-semibold text-sage-700 mb-1">
+            Get started with Mirifer
+          </h3>
+          <p className="text-sm text-sage-500 mb-4">
+            Tap the <span className="font-medium text-sage-600">+</span> button below to check in your first pet. That will create the client, pet, and first appointment automatically.
+          </p>
+          <div className="flex flex-col gap-2 text-sm text-sage-500">
+            <p>1. Check in a pet to create your first client</p>
+            <p>2. Set up your service prices in Settings</p>
+            <p>3. Schedule future appointments from the Appointments page</p>
+          </div>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
