@@ -133,6 +133,7 @@ export async function quickCheckIn(formData: FormData): Promise<ActionResultWith
   // Always log a visit (appointment) for this check-in
   const service = (formData.get("service") as string)?.trim() || "Grooming";
   const checkInPrice = parseFloat((formData.get("price") as string) || "0") || 0;
+  const notes = (formData.get("notes") as string)?.trim();
 
   const { error: appointmentError } = await supabase
     .from("appointments")
@@ -142,6 +143,7 @@ export async function quickCheckIn(formData: FormData): Promise<ActionResultWith
       profile_id: user.id,
       service,
       price: checkInPrice,
+      notes: notes || null,
     });
 
   if (appointmentError) {
@@ -231,7 +233,8 @@ export async function logVisit(
   clientId: string,
   petId: string,
   service: string,
-  price: number
+  price: number,
+  notes?: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
 
@@ -258,6 +261,7 @@ export async function logVisit(
     profile_id: user.id,
     service: service.trim(),
     price,
+    notes: notes?.trim() || null,
   });
 
   if (insertError) {
@@ -802,6 +806,49 @@ export async function importDefaultPresets(): Promise<ActionResult> {
   if (insertError) return { success: false, error: "Failed to import defaults." };
 
   revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+// ── Appointment Management ──────────────────────────────────────────
+
+export async function deleteAppointment(appointmentId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const { error: deleteError } = await supabase
+    .from("appointments")
+    .delete()
+    .eq("id", appointmentId);
+
+  if (deleteError) return { success: false, error: "Failed to delete appointment." };
+
+  revalidatePath("/dashboard/appointments");
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function rescheduleAppointment(
+  appointmentId: string,
+  newDate: string
+): Promise<ActionResult> {
+  if (!newDate) return { success: false, error: "Date is required." };
+
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  const { error: updateError } = await supabase
+    .from("appointments")
+    .update({ completed_at: new Date(newDate).toISOString() })
+    .eq("id", appointmentId);
+
+  if (updateError) return { success: false, error: "Failed to reschedule appointment." };
+
+  revalidatePath("/dashboard/appointments");
+  revalidatePath("/dashboard/clients");
   revalidatePath("/dashboard");
   return { success: true };
 }

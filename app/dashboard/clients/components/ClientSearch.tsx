@@ -16,6 +16,7 @@ type VisitRecord = {
   service: string;
   price: number;
   completedAt: string;
+  notes: string | null;
 };
 
 type ClientData = {

@@ -1,8 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
-import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon, DollarIcon } from "@/components/icons";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ScissorsIcon,
+  DollarIcon,
+  TrashIcon,
+  CalendarIcon,
+  XIcon,
+} from "@/components/icons";
+import { deleteAppointment, rescheduleAppointment } from "@/app/dashboard/actions";
 
 type Appointment = {
   id: string;
@@ -28,8 +37,17 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+function formatDateTimeLocal(dateStr: string): string {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 export default function AppointmentsCalendar({ appointments, month, year }: Props) {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   // Group appointments by day
   const appointmentsByDay = useMemo(() => {
@@ -62,6 +80,22 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
 
   // Selected day's appointments
   const selectedAppointments = selectedDay ? appointmentsByDay.get(selectedDay) ?? [] : [];
+
+  function handleDelete(appointmentId: string) {
+    startTransition(async () => {
+      await deleteAppointment(appointmentId);
+      setDeleteConfirmId(null);
+    });
+  }
+
+  function handleReschedule(appointmentId: string) {
+    if (!rescheduleDate) return;
+    startTransition(async () => {
+      await rescheduleAppointment(appointmentId, rescheduleDate);
+      setRescheduleId(null);
+      setRescheduleDate("");
+    });
+  }
 
   return (
     <div>
@@ -160,6 +194,9 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
                   "en-US",
                   { hour: "numeric", minute: "2-digit", hour12: true }
                 );
+                const isDeleting = deleteConfirmId === appt.id;
+                const isRescheduling = rescheduleId === appt.id;
+
                 return (
                   <div
                     key={appt.id}
@@ -195,6 +232,88 @@ export default function AppointmentsCalendar({ appointments, month, year }: Prop
                       <p className="mt-1.5 text-xs text-sage-400 italic">
                         {appt.notes}
                       </p>
+                    )}
+
+                    {/* Action buttons */}
+                    {!isDeleting && !isRescheduling && (
+                      <div className="mt-3 pt-3 border-t border-warm-gray/30 flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setRescheduleId(appt.id);
+                            setRescheduleDate(formatDateTimeLocal(appt.completedAt));
+                            setDeleteConfirmId(null);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sage-500 hover:text-sage-700 border border-warm-gray/50 hover:border-sage-300 rounded-lg transition-colors"
+                        >
+                          <CalendarIcon className="w-3.5 h-3.5" />
+                          Reschedule
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeleteConfirmId(appt.id);
+                            setRescheduleId(null);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sage-400 hover:text-red-500 border border-warm-gray/50 hover:border-red-200 rounded-lg transition-colors"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                          Delete
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Delete confirmation */}
+                    {isDeleting && (
+                      <div className="mt-3 pt-3 border-t border-warm-gray/30">
+                        <p className="text-sm text-red-600 mb-2">
+                          Delete this appointment?
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setDeleteConfirmId(null)}
+                            className="flex-1 py-2 text-sm font-medium text-sage-600 bg-white border border-warm-gray/50 rounded-lg hover:bg-sage-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleDelete(appt.id)}
+                            disabled={isPending}
+                            className="flex-1 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                          >
+                            {isPending ? "Deleting..." : "Delete"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reschedule form */}
+                    {isRescheduling && (
+                      <div className="mt-3 pt-3 border-t border-warm-gray/30">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium text-sage-700">Reschedule to:</p>
+                          <button
+                            onClick={() => {
+                              setRescheduleId(null);
+                              setRescheduleDate("");
+                            }}
+                            className="p-1 text-sage-400 hover:text-sage-600 transition-colors"
+                          >
+                            <XIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <input
+                          type="datetime-local"
+                          value={rescheduleDate}
+                          onChange={(e) => setRescheduleDate(e.target.value)}
+                          className="w-full px-3 py-2.5 text-sm rounded-lg border border-warm-gray bg-soft-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors mb-2"
+                        />
+                        <button
+                          onClick={() => handleReschedule(appt.id)}
+                          disabled={isPending || !rescheduleDate}
+                          className="w-full py-2 text-sm font-medium text-white bg-sage-400 rounded-lg hover:bg-sage-500 transition-colors disabled:opacity-50"
+                        >
+                          {isPending ? "Saving..." : "Confirm Reschedule"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 );

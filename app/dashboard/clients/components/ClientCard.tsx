@@ -28,6 +28,7 @@ type VisitRecord = {
   service: string;
   price: number;
   completedAt: string;
+  notes: string | null;
 };
 
 type ServicePreset = { name: string; defaultPrice: number };
@@ -214,27 +215,34 @@ export default function ClientCard({
             {visits.map((visit) => (
               <div
                 key={visit.id}
-                className="flex items-center gap-3 px-3 py-2 bg-sage-50/50 rounded-lg text-sm"
+                className="px-3 py-2 bg-sage-50/50 rounded-lg text-sm"
               >
-                <ScissorsIcon className="w-3.5 h-3.5 text-sage-400 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-sage-700 font-medium">
-                    {visit.service}
-                  </span>
-                  <span className="text-sage-400 mx-1.5">&middot;</span>
-                  <span className="text-sage-500">{visit.petName}</span>
+                <div className="flex items-center gap-3">
+                  <ScissorsIcon className="w-3.5 h-3.5 text-sage-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sage-700 font-medium">
+                      {visit.service}
+                    </span>
+                    <span className="text-sage-400 mx-1.5">&middot;</span>
+                    <span className="text-sage-500">{visit.petName}</span>
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    <span className="text-sage-700 font-medium">
+                      ${visit.price.toFixed(2)}
+                    </span>
+                    <p className="text-xs text-sage-400">
+                      {new Date(visit.completedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-shrink-0 text-right">
-                  <span className="text-sage-700 font-medium">
-                    ${visit.price.toFixed(2)}
-                  </span>
-                  <p className="text-xs text-sage-400">
-                    {new Date(visit.completedAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
+                {visit.notes && (
+                  <p className="mt-1 ml-6.5 text-xs text-sage-500 italic">
+                    {visit.notes}
                   </p>
-                </div>
+                )}
               </div>
             ))}
           </div>

@@ -30,6 +30,7 @@ export default async function ClientsPage() {
     service: string;
     price: number;
     completed_at: string;
+    notes: string | null;
     pets: { name: string } | null;
   }[] = [];
 
@@ -37,7 +38,7 @@ export default async function ClientsPage() {
     const { data, error } = await supabase
       .from("appointments")
       .select(
-        "id, client_id, pet_id, service, price, completed_at, pets ( name )"
+        "id, client_id, pet_id, service, price, completed_at, notes, pets ( name )"
       )
       .order("completed_at", { ascending: false });
 
@@ -60,6 +61,7 @@ export default async function ClientsPage() {
         service: string;
         price: number;
         completedAt: string;
+        notes: string | null;
       }[];
     }
   >();
@@ -73,6 +75,7 @@ export default async function ClientsPage() {
       service: appt.service,
       price: Number(appt.price) || 0,
       completedAt: appt.completed_at,
+      notes: appt.notes,
     };
 
     const existing = appointmentsByClient.get(appt.client_id);

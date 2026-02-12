@@ -306,6 +306,23 @@ export default function QuickCheckIn({ servicePresets = [] }: { servicePresets?:
                   </div>
                 </div>
 
+                {/* Notes */}
+                <div>
+                  <label
+                    htmlFor="notes"
+                    className="block text-sm font-medium text-sage-700 mb-1.5"
+                  >
+                    Notes
+                  </label>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    rows={2}
+                    placeholder="Any notes about this visit..."
+                    className="w-full px-4 py-3 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors resize-none"
+                  />
+                </div>
+
                 <div>
                   <label
                     htmlFor="breed"

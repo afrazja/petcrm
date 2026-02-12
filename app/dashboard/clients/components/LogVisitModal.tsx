@@ -29,6 +29,7 @@ export default function LogVisitModal({
   const [selectedPetId, setSelectedPetId] = useState(pets[0]?.id ?? "");
   const [service, setService] = useState("");
   const [price, setPrice] = useState("");
+  const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
   const modalRef = useRef<HTMLDivElement>(null);
@@ -58,7 +59,7 @@ export default function LogVisitModal({
     const priceNum = parseFloat(price) || 0;
 
     startTransition(async () => {
-      const result = await logVisit(clientId, selectedPetId, service, priceNum);
+      const result = await logVisit(clientId, selectedPetId, service, priceNum, notes);
       if (result.success) {
         onClose();
       } else {
@@ -179,6 +180,20 @@ export default function LogVisitModal({
                 className="w-full pl-8 pr-4 py-3 border border-warm-gray rounded-xl text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base"
               />
             </div>
+          </div>
+
+          {/* Notes */}
+          <div className="mb-5">
+            <label className="block text-sm font-medium text-sage-600 mb-1.5">
+              Notes
+            </label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any notes about this visit..."
+              className="w-full px-4 py-3 border border-warm-gray rounded-xl text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base resize-none"
+            />
           </div>
 
           {/* Error */}
