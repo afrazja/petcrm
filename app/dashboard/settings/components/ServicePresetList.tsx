@@ -30,6 +30,7 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
   const [editDuration, setEditDuration] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Add form state
   const [newName, setNewName] = useState("");
@@ -111,14 +112,16 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
     });
   }
 
-  function handleDelete(presetId: string) {
+  function handleDeleteConfirm(presetId: string) {
     setError(null);
     startTransition(async () => {
       const result = await deleteServicePreset(presetId);
       if (result.success) {
         setPresets((prev) => prev.filter((p) => p.id !== presetId));
+        setConfirmDeleteId(null);
       } else {
         setError(result.error ?? "Failed to delete.");
+        setConfirmDeleteId(null);
       }
     });
   }
@@ -240,30 +243,54 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
                 ) : (
                   /* Display mode */
                   <>
-                    <span className="flex-1 text-sm font-medium text-sage-700">
-                      {preset.name}
-                    </span>
-                    <span className="text-sm text-sage-500 font-medium">
-                      ${preset.defaultPrice.toFixed(2)}
-                    </span>
-                    <span className="text-xs text-sage-400 font-medium">
-                      {preset.defaultDuration}min
-                    </span>
-                    <button
-                      onClick={() => startEdit(preset)}
-                      className="p-1.5 text-sage-400 hover:text-sage-600 transition-colors rounded-lg hover:bg-white"
-                      aria-label="Edit"
-                    >
-                      <PencilIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(preset.id)}
-                      disabled={isPending}
-                      className="p-1.5 text-sage-400 hover:text-red-500 transition-colors rounded-lg hover:bg-white disabled:opacity-50"
-                      aria-label="Delete"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
+                    {confirmDeleteId === preset.id ? (
+                      /* Delete confirmation */
+                      <>
+                        <span className="flex-1 text-sm text-red-600 font-medium">
+                          Delete &ldquo;{preset.name}&rdquo;?
+                        </span>
+                        <button
+                          onClick={() => handleDeleteConfirm(preset.id)}
+                          disabled={isPending}
+                          className="px-3 py-1.5 text-xs font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                        >
+                          {isPending ? "Deleting..." : "Delete"}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="px-3 py-1.5 text-xs font-medium text-sage-500 hover:text-sage-700 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm font-medium text-sage-700">
+                          {preset.name}
+                        </span>
+                        <span className="text-sm text-sage-500 font-medium">
+                          ${preset.defaultPrice.toFixed(2)}
+                        </span>
+                        <span className="text-xs text-sage-400 font-medium">
+                          {preset.defaultDuration}min
+                        </span>
+                        <button
+                          onClick={() => startEdit(preset)}
+                          className="p-1.5 text-sage-400 hover:text-sage-600 transition-colors rounded-lg hover:bg-white"
+                          aria-label="Edit"
+                        >
+                          <PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(preset.id)}
+                          disabled={isPending}
+                          className="p-1.5 text-sage-400 hover:text-red-500 transition-colors rounded-lg hover:bg-white disabled:opacity-50"
+                          aria-label="Delete"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
               </div>
