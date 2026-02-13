@@ -54,7 +54,7 @@ export default function PetSearch({ pets }: { pets: PetData[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by pet name, breed, or owner..."
-          className="w-full pl-12 pr-4 py-3.5 bg-white border border-warm-gray/50 rounded-2xl text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base shadow-sm"
+          className="w-full pl-12 pr-4 py-3.5 bg-white border border-warm-gray/50 rounded-lg text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base shadow-sm"
         />
         {query && (
           <button

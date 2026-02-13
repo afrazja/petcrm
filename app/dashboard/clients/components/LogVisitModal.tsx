@@ -110,7 +110,7 @@ export default function LogVisitModal({
               <select
                 value={selectedPetId}
                 onChange={(e) => setSelectedPetId(e.target.value)}
-                className="w-full px-4 py-3 border border-warm-gray rounded-xl text-sage-800 bg-white focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base"
+                className="w-full px-4 py-3 border border-warm-gray rounded-lg text-sage-800 bg-white focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base"
               >
                 {pets.map((pet) => (
                   <option key={pet.id} value={pet.id}>
@@ -160,7 +160,7 @@ export default function LogVisitModal({
               value={service}
               onChange={(e) => setService(e.target.value)}
               placeholder="Or type a custom service..."
-              className="w-full px-4 py-3 border border-warm-gray rounded-xl text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base"
+              className="w-full px-4 py-3 border border-warm-gray rounded-lg text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base"
             />
           </div>
 
@@ -181,7 +181,7 @@ export default function LogVisitModal({
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="0.00"
-                className="w-full pl-8 pr-4 py-3 border border-warm-gray rounded-xl text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base"
+                className="w-full pl-8 pr-4 py-3 border border-warm-gray rounded-lg text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base"
               />
             </div>
           </div>
@@ -200,7 +200,7 @@ export default function LogVisitModal({
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
                 placeholder="60"
-                className="w-full px-4 pr-14 py-3 border border-warm-gray rounded-xl text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base"
+                className="w-full px-4 pr-14 py-3 border border-warm-gray rounded-lg text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base"
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sage-400 text-sm font-medium">min</span>
             </div>
@@ -216,7 +216,7 @@ export default function LogVisitModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Any notes about this visit..."
-              className="w-full px-4 py-3 border border-warm-gray rounded-xl text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base resize-none"
+              className="w-full px-4 py-3 border border-warm-gray rounded-lg text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base resize-none"
             />
           </div>
 

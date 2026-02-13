@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
-  ChevronLeftIcon,
   PawPrintIcon,
   PhoneIcon,
   WhatsAppIcon,
@@ -162,15 +160,6 @@ export default async function PetProfilePage({
 
   return (
     <div>
-      {/* Back nav */}
-      <Link
-        href="/dashboard/pets"
-        className="inline-flex items-center gap-1 text-sage-500 hover:text-sage-700 text-sm mb-6 transition-colors"
-      >
-        <ChevronLeftIcon className="w-4 h-4" />
-        All Pets
-      </Link>
-
       {/* Pet header */}
       <div className="bg-white rounded-2xl shadow-sm border border-warm-gray/50 p-6 mb-6">
         <div className="flex items-start gap-4">
