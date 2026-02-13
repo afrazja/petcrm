@@ -33,6 +33,8 @@ export default async function AppointmentsPage({
     ownerPhone: string | null;
   }[] = [];
 
+  let appointmentError = false;
+
   try {
     const { data: appointments } = await supabase
       .from("appointments")
@@ -73,8 +75,9 @@ export default async function AppointmentsPage({
         ownerPhone: pet.clients?.phone ?? null,
       };
     });
-  } catch {
-    // appointments table may not exist yet
+  } catch (err) {
+    console.error("[Appointments] Failed to load appointments:", err);
+    appointmentError = true;
   }
 
   // Fetch all pets for the add appointment modal
@@ -113,6 +116,13 @@ export default async function AppointmentsPage({
           View and manage your grooming appointments.
         </p>
       </div>
+
+      {appointmentError && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 text-sm">
+          <p className="font-medium">Could not load appointments</p>
+          <p className="mt-0.5 text-amber-600">The calendar may be empty or incomplete. Try refreshing the page.</p>
+        </div>
+      )}
 
       <AppointmentsCalendar
         appointments={formattedAppointments}

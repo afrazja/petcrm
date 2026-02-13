@@ -36,6 +36,7 @@ export default async function ClientsPage() {
     pets: { name: string } | null;
   }[] = [];
 
+  let appointmentError = false;
   try {
     const { data, error } = await supabase
       .from("appointments")
@@ -47,8 +48,9 @@ export default async function ClientsPage() {
     if (!error && data) {
       appointments = data as unknown as typeof appointments;
     }
-  } catch {
-    // Table likely doesn't exist yet — that's fine
+  } catch (err) {
+    console.error("[Clients] Failed to load appointments data:", err);
+    appointmentError = true;
   }
 
   // Group appointments by client_id
@@ -171,6 +173,13 @@ export default async function ClientsPage() {
           {formattedClients.length !== 1 ? "s" : ""} in your directory.
         </p>
       </div>
+
+      {appointmentError && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 text-sm">
+          <p className="font-medium">Could not load visit history</p>
+          <p className="mt-0.5 text-amber-600">Last visit dates and spending totals may be missing. Try refreshing the page.</p>
+        </div>
+      )}
 
       <ClientSearch clients={formattedClients} servicePresets={servicePresets} />
 

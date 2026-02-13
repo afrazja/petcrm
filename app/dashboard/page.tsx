@@ -73,6 +73,10 @@ export default async function DashboardPage() {
     daysUntilExpiry: number;
   }[] = [];
 
+  // Error tracking
+  let appointmentError = false;
+  let vaccineError = false;
+
   try {
     // Fetch today's check-ins (only completed)
     const { data: todaysAppointments } = await supabase
@@ -227,8 +231,9 @@ export default async function DashboardPage() {
       })
       .sort((a, b) => b.weeksOverdue - a.weeksOverdue)
       .slice(0, 10);
-  } catch {
-    // appointments table may not exist yet
+  } catch (err) {
+    console.error("[Dashboard] Failed to load appointments data:", err);
+    appointmentError = true;
   }
 
   // 3. Expiring vaccines (within 30 days or expired) — doesn't depend on appointments table
@@ -266,8 +271,9 @@ export default async function DashboardPage() {
         daysUntilExpiry,
       };
     });
-  } catch {
-    // vaccine query failed — that's fine
+  } catch (err) {
+    console.error("[Dashboard] Failed to load vaccine data:", err);
+    vaccineError = true;
   }
 
   const stats = [
@@ -335,6 +341,20 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Data load warning */}
+      {appointmentError && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 text-sm">
+          <p className="font-medium">Could not load appointment data</p>
+          <p className="mt-0.5 text-amber-600">Revenue, check-ins, and reminders may be incomplete. Try refreshing the page.</p>
+        </div>
+      )}
+      {vaccineError && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 text-sm">
+          <p className="font-medium">Could not load vaccine data</p>
+          <p className="mt-0.5 text-amber-600">Vaccine expiry reminders may be missing. Try refreshing the page.</p>
+        </div>
+      )}
 
       {/* Revenue Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

@@ -82,6 +82,8 @@ export default async function PetProfilePage({
     status: string;
   }[] = [];
 
+  let groomingError = false;
+
   try {
     const { data: appointments } = await supabase
       .from("appointments")
@@ -99,8 +101,9 @@ export default async function PetProfilePage({
       duration: Number(appt.duration) || 60,
       status: (appt as unknown as { status: string }).status ?? "completed",
     }));
-  } catch {
-    // appointments table may not exist yet
+  } catch (err) {
+    console.error("[PetProfile] Failed to load grooming history:", err);
+    groomingError = true;
   }
 
   // Calculate age from date_of_birth
@@ -289,6 +292,12 @@ export default async function PetProfilePage({
       )}
 
       {/* Grooming History */}
+      {groomingError && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 text-sm">
+          <p className="font-medium">Could not load grooming history</p>
+          <p className="mt-0.5 text-amber-600">Past visits may be missing. Try refreshing the page.</p>
+        </div>
+      )}
       <GroomingHistory visits={groomingHistory} />
 
       {/* Photo Gallery */}
