@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { signout } from "@/app/auth/actions";
 import { MenuIcon } from "@/components/icons";
 
@@ -9,7 +10,25 @@ type Props = {
   onMenuToggle: () => void;
 };
 
+const pageTitles: Record<string, string> = {
+  "/dashboard": "Dashboard",
+  "/dashboard/clients": "Clients",
+  "/dashboard/pets": "Pets",
+  "/dashboard/appointments": "Appointments",
+  "/dashboard/settings": "Settings",
+};
+
+function getPageTitle(pathname: string): string {
+  if (pageTitles[pathname]) return pageTitles[pathname];
+  if (pathname.startsWith("/dashboard/pets/")) return "Pet Details";
+  if (pathname.startsWith("/dashboard/clients/")) return "Client Details";
+  return "Dashboard";
+}
+
 export default function Header({ userEmail, userInitial, onMenuToggle }: Props) {
+  const pathname = usePathname();
+  const pageTitle = getPageTitle(pathname);
+
   return (
     <header className="h-16 bg-white border-b border-warm-gray/50 flex items-center justify-between px-6 flex-shrink-0">
       <div className="flex items-center gap-3">
@@ -19,7 +38,7 @@ export default function Header({ userEmail, userInitial, onMenuToggle }: Props) 
         >
           <MenuIcon className="w-5 h-5" />
         </button>
-        <h1 className="text-lg font-semibold text-sage-700">Dashboard</h1>
+        <h1 className="text-lg font-semibold text-sage-700">{pageTitle}</h1>
       </div>
 
       <div className="flex items-center gap-3">
