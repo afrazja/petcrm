@@ -866,3 +866,57 @@ export async function updateAppointmentStatus(
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+// ── Booking Settings ─────────────────────────────────────────────────
+
+export async function updateBookingSettings(formData: FormData): Promise<ActionResult> {
+  const slug = (formData.get("slug") as string)?.trim().toLowerCase();
+  const enabled = formData.get("enabled") === "true";
+
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { success: false, error: "You must be logged in." };
+
+  // Validate slug format (lowercase letters, numbers, hyphens)
+  if (slug && !/^[a-z0-9-]+$/.test(slug)) {
+    return { success: false, error: "Slug can only contain lowercase letters, numbers, and hyphens." };
+  }
+
+  if (slug && slug.length < 3) {
+    return { success: false, error: "Slug must be at least 3 characters." };
+  }
+
+  if (slug && slug.length > 50) {
+    return { success: false, error: "Slug must be under 50 characters." };
+  }
+
+  // Check if slug is already taken by another user
+  if (slug) {
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("booking_slug", slug)
+      .neq("id", user.id)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      return { success: false, error: "This booking link is already taken. Try a different one." };
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      booking_slug: slug || null,
+      booking_enabled: enabled && !!slug,
+    })
+    .eq("id", user.id);
+
+  if (updateError) {
+    console.error("Failed to update booking settings:", updateError);
+    return { success: false, error: "Failed to save booking settings." };
+  }
+
+  revalidatePath("/dashboard/settings");
+  return { success: true };
+}

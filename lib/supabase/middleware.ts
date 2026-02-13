@@ -13,6 +13,12 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
+  // Public booking pages — skip auth entirely
+  const earlyPath = request.nextUrl.pathname;
+  if (earlyPath.startsWith("/book") || earlyPath.startsWith("/api/book")) {
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

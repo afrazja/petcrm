@@ -15,6 +15,8 @@ export type Database = {
           full_name: string | null;
           business_name: string | null;
           phone: string | null;
+          booking_slug: string | null;
+          booking_enabled: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -23,6 +25,8 @@ export type Database = {
           full_name?: string | null;
           business_name?: string | null;
           phone?: string | null;
+          booking_slug?: string | null;
+          booking_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -31,6 +35,8 @@ export type Database = {
           full_name?: string | null;
           business_name?: string | null;
           phone?: string | null;
+          booking_slug?: string | null;
+          booking_enabled?: boolean;
           updated_at?: string;
         };
       };
