@@ -19,7 +19,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-warm-gray/50">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2">
           <PawPrintIcon className="w-7 h-7 text-sage-400" />
           <span className="text-xl font-semibold tracking-tight text-sage-700">
             Mirifer
