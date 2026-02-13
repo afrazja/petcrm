@@ -28,6 +28,7 @@ export default async function PetProfilePage({
       name,
       breed,
       date_of_birth,
+      weight,
       vaccine_expiry_date,
       notes,
       health_map,
@@ -175,6 +176,7 @@ export default async function PetProfilePage({
                   name: pet.name,
                   breed: pet.breed,
                   dateOfBirth: pet.date_of_birth,
+                  weight: (pet as unknown as { weight: number | null }).weight,
                   vaccineExpiryDate: pet.vaccine_expiry_date,
                   notes: pet.notes,
                 }}
@@ -198,7 +200,7 @@ export default async function PetProfilePage({
         </div>
 
         {/* Info cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
           <div className="bg-sage-50/50 rounded-xl px-4 py-3">
             <p className="text-xs text-sage-400 mb-0.5">Age</p>
             <p className="text-sm font-medium text-sage-700">
@@ -214,6 +216,14 @@ export default async function PetProfilePage({
                 })}
               </p>
             )}
+          </div>
+          <div className="bg-sage-50/50 rounded-xl px-4 py-3">
+            <p className="text-xs text-sage-400 mb-0.5">Weight</p>
+            <p className="text-sm font-medium text-sage-700">
+              {(pet as unknown as { weight: number | null }).weight
+                ? `${(pet as unknown as { weight: number }).weight} lbs`
+                : "Not set"}
+            </p>
           </div>
           <div className="bg-sage-50/50 rounded-xl px-4 py-3">
             <p className="text-xs text-sage-400 mb-0.5">Added</p>

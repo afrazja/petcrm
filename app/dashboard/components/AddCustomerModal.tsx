@@ -9,9 +9,10 @@ type PetEntry = {
   name: string;
   breed: string;
   dateOfBirth: string;
+  weight: string;
 };
 
-const emptyPet = (): PetEntry => ({ name: "", breed: "", dateOfBirth: "" });
+const emptyPet = (): PetEntry => ({ name: "", breed: "", dateOfBirth: "", weight: "" });
 
 export default function AddCustomerModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -252,19 +253,38 @@ export default function AddCustomerModal() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-sage-700 mb-1.5">
-                        Date of Birth
-                      </label>
-                      <input
-                        type="date"
-                        value={pet.dateOfBirth}
-                        onChange={(e) =>
-                          updatePet(index, "dateOfBirth", e.target.value)
-                        }
-                        max={new Date().toISOString().split("T")[0]}
-                        className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-sage-700 mb-1.5">
+                          Date of Birth
+                        </label>
+                        <input
+                          type="date"
+                          value={pet.dateOfBirth}
+                          onChange={(e) =>
+                            updatePet(index, "dateOfBirth", e.target.value)
+                          }
+                          max={new Date().toISOString().split("T")[0]}
+                          className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-sage-700 mb-1.5">
+                          Weight (lbs)
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.1"
+                          min="0"
+                          value={pet.weight}
+                          onChange={(e) =>
+                            updatePet(index, "weight", e.target.value)
+                          }
+                          placeholder="e.g. 25"
+                          className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}

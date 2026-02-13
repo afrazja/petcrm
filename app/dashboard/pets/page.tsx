@@ -15,6 +15,7 @@ export default async function PetsPage() {
       name,
       breed,
       date_of_birth,
+      weight,
       created_at,
       clients!inner ( full_name, phone )
     `
@@ -64,6 +65,7 @@ export default async function PetsPage() {
       name: pet.name,
       breed: pet.breed,
       ageLabel,
+      weight: (pet as unknown as { weight: number | null }).weight,
       createdAt: pet.created_at,
       ownerName: (pet.clients as unknown as { full_name: string })?.full_name ?? "Unknown",
       ownerPhone: (pet.clients as unknown as { phone: string | null })?.phone ?? null,

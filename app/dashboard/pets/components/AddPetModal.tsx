@@ -256,20 +256,40 @@ export default function AddPetModal({ clients }: { clients: ClientOption[] }) {
                       className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
                     />
                   </div>
-                  <div>
-                    <label
-                      htmlFor="dateOfBirth"
-                      className="block text-sm font-medium text-sage-700 mb-1.5"
-                    >
-                      Date of Birth
-                    </label>
-                    <input
-                      id="dateOfBirth"
-                      name="dateOfBirth"
-                      type="date"
-                      max={new Date().toISOString().split("T")[0]}
-                      className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label
+                        htmlFor="dateOfBirth"
+                        className="block text-sm font-medium text-sage-700 mb-1.5"
+                      >
+                        Date of Birth
+                      </label>
+                      <input
+                        id="dateOfBirth"
+                        name="dateOfBirth"
+                        type="date"
+                        max={new Date().toISOString().split("T")[0]}
+                        className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="weight"
+                        className="block text-sm font-medium text-sage-700 mb-1.5"
+                      >
+                        Weight (lbs)
+                      </label>
+                      <input
+                        id="weight"
+                        name="weight"
+                        type="number"
+                        inputMode="decimal"
+                        step="0.1"
+                        min="0"
+                        placeholder="e.g. 25"
+                        className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                      />
+                    </div>
                   </div>
                 </div>
 

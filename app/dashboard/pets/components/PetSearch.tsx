@@ -9,6 +9,7 @@ type PetData = {
   name: string;
   breed: string | null;
   ageLabel: string | null;
+  weight: number | null;
   createdAt: string;
   ownerName: string;
   ownerPhone: string | null;
@@ -101,7 +102,7 @@ export default function PetSearch({ pets }: { pets: PetData[] }) {
                     {pet.name}
                   </p>
                   <p className="text-sm text-sage-500 truncate">
-                    {[pet.breed, pet.ageLabel].filter(Boolean).join(" · ") ||
+                    {[pet.breed, pet.ageLabel, pet.weight ? `${pet.weight} lbs` : null].filter(Boolean).join(" · ") ||
                       "No details"}
                   </p>
                 </div>

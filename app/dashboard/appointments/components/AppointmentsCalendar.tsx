@@ -10,6 +10,7 @@ import {
   TrashIcon,
   CalendarIcon,
   XIcon,
+  SearchIcon,
 } from "@/components/icons";
 import { deleteAppointment, editAppointment, updateAppointmentStatus } from "@/app/dashboard/actions";
 
@@ -63,11 +64,29 @@ export default function AppointmentsCalendar({ appointments, month, year, servic
   const [editDuration, setEditDuration] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Group appointments by day
+  // Filter appointments by search query
+  const filteredAppointments = useMemo(() => {
+    if (!searchQuery.trim()) return appointments;
+    const q = searchQuery.toLowerCase();
+    return appointments.filter((appt) => {
+      if (appt.petName.toLowerCase().includes(q)) return true;
+      if (appt.ownerName.toLowerCase().includes(q)) return true;
+      if (appt.service.toLowerCase().includes(q)) return true;
+      if (appt.ownerPhone) {
+        const phoneDigits = appt.ownerPhone.replace(/\D/g, "");
+        const queryDigits = searchQuery.replace(/\D/g, "");
+        if (queryDigits.length > 0 && phoneDigits.includes(queryDigits)) return true;
+      }
+      return false;
+    });
+  }, [appointments, searchQuery]);
+
+  // Group filtered appointments by day
   const appointmentsByDay = useMemo(() => {
     const map = new Map<number, Appointment[]>();
-    for (const appt of appointments) {
+    for (const appt of filteredAppointments) {
       const d = new Date(appt.completedAt);
       const day = d.getDate();
       const existing = map.get(day);
@@ -78,7 +97,7 @@ export default function AppointmentsCalendar({ appointments, month, year, servic
       }
     }
     return map;
-  }, [appointments]);
+  }, [filteredAppointments]);
 
   // Calendar grid
   const firstDayOfMonth = new Date(year, month, 1).getDay();
@@ -139,6 +158,32 @@ export default function AppointmentsCalendar({ appointments, month, year, servic
 
   return (
     <div>
+      {/* Search bar */}
+      <div className="relative mb-6">
+        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-sage-400 pointer-events-none" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by pet, owner, or service..."
+          className="w-full pl-12 pr-4 py-3.5 bg-white border border-warm-gray/50 rounded-lg text-sage-800 placeholder:text-sage-300 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-sage-300 text-base shadow-sm"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600 text-sm font-medium transition-colors"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {searchQuery && (
+        <p className="text-sm text-sage-400 mb-4">
+          {filteredAppointments.length} result{filteredAppointments.length !== 1 ? "s" : ""} for &ldquo;{searchQuery}&rdquo;
+        </p>
+      )}
+
       {/* Month header with navigation */}
       <div className="flex items-center justify-between mb-6">
         <Link

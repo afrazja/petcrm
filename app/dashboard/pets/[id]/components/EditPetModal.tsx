@@ -11,6 +11,7 @@ type Props = {
     name: string;
     breed: string | null;
     dateOfBirth: string | null;
+    weight: number | null;
     vaccineExpiryDate: string | null;
     notes: string | null;
   };
@@ -103,17 +104,35 @@ export default function EditPetModal({ pet }: Props) {
                   className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
                 />
               </div>
-              <div>
-                <label htmlFor="editDob" className="block text-sm font-medium text-sage-700 mb-1.5">
-                  Date of Birth
-                </label>
-                <input
-                  id="editDob"
-                  name="dateOfBirth"
-                  type="date"
-                  defaultValue={pet.dateOfBirth ?? ""}
-                  className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="editDob" className="block text-sm font-medium text-sage-700 mb-1.5">
+                    Date of Birth
+                  </label>
+                  <input
+                    id="editDob"
+                    name="dateOfBirth"
+                    type="date"
+                    defaultValue={pet.dateOfBirth ?? ""}
+                    className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="editWeight" className="block text-sm font-medium text-sage-700 mb-1.5">
+                    Weight (lbs)
+                  </label>
+                  <input
+                    id="editWeight"
+                    name="weight"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    min="0"
+                    defaultValue={pet.weight ?? ""}
+                    placeholder="e.g. 25"
+                    className="w-full px-4 py-3.5 text-base rounded-lg border border-warm-gray bg-soft-white text-sage-800 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent transition-colors"
+                  />
+                </div>
               </div>
               <div>
                 <label htmlFor="editVaccine" className="block text-sm font-medium text-sage-700 mb-1.5">

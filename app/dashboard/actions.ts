@@ -192,7 +192,7 @@ export async function addCustomerWithPets(formData: FormData): Promise<ActionRes
     return { success: false, error: "Please enter a valid phone number." };
   }
 
-  let pets: { name: string; breed: string; dateOfBirth: string }[];
+  let pets: { name: string; breed: string; dateOfBirth: string; weight?: string }[];
   try {
     pets = JSON.parse(petsJson);
   } catch {
@@ -263,6 +263,7 @@ export async function addCustomerWithPets(formData: FormData): Promise<ActionRes
     name: p.name.trim(),
     breed: p.breed?.trim() || null,
     date_of_birth: p.dateOfBirth || null,
+    weight: p.weight ? parseFloat(p.weight) : null,
   }));
 
   const { error: petsError } = await supabase.from("pets").insert(petRows);
@@ -282,6 +283,7 @@ export async function addPetToExistingClient(formData: FormData): Promise<Action
   const petName = (formData.get("petName") as string)?.trim();
   const breed = (formData.get("breed") as string)?.trim();
   const dateOfBirth = (formData.get("dateOfBirth") as string)?.trim();
+  const weight = (formData.get("weight") as string)?.trim();
 
   if (!clientId) {
     return { success: false, error: "Please select a client." };
@@ -318,6 +320,7 @@ export async function addPetToExistingClient(formData: FormData): Promise<Action
     name: petName,
     breed: breed || null,
     date_of_birth: dateOfBirth || null,
+    weight: weight ? parseFloat(weight) : null,
   });
 
   if (insertError) {
@@ -368,6 +371,7 @@ export async function editPet(formData: FormData): Promise<ActionResult> {
   const name = (formData.get("name") as string)?.trim();
   const breed = (formData.get("breed") as string)?.trim();
   const dateOfBirth = (formData.get("dateOfBirth") as string)?.trim();
+  const weight = (formData.get("weight") as string)?.trim();
   const vaccineExpiryDate = (formData.get("vaccineExpiryDate") as string)?.trim();
   const notes = (formData.get("notes") as string)?.trim();
 
@@ -384,6 +388,7 @@ export async function editPet(formData: FormData): Promise<ActionResult> {
       name,
       breed: breed || null,
       date_of_birth: dateOfBirth || null,
+      weight: weight ? parseFloat(weight) : null,
       vaccine_expiry_date: vaccineExpiryDate || null,
       notes: notes || null,
     })
