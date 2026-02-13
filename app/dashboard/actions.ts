@@ -435,6 +435,59 @@ export async function addCustomerWithPets(formData: FormData): Promise<ActionRes
   return { success: true };
 }
 
+export async function addPetToExistingClient(formData: FormData): Promise<ActionResult> {
+  const clientId = (formData.get("clientId") as string)?.trim();
+  const petName = (formData.get("petName") as string)?.trim();
+  const breed = (formData.get("breed") as string)?.trim();
+  const dateOfBirth = (formData.get("dateOfBirth") as string)?.trim();
+
+  if (!clientId) {
+    return { success: false, error: "Please select a client." };
+  }
+  if (!petName) {
+    return { success: false, error: "Pet name is required." };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: "You must be logged in." };
+  }
+
+  // Check for duplicate pet name under this client
+  const { data: existingPets } = await supabase
+    .from("pets")
+    .select("id")
+    .eq("client_id", clientId)
+    .ilike("name", petName)
+    .limit(1);
+
+  if (existingPets && existingPets.length > 0) {
+    return { success: false, error: "This client already has a pet with that name." };
+  }
+
+  const { error: insertError } = await supabase.from("pets").insert({
+    client_id: clientId,
+    name: petName,
+    breed: breed || null,
+    date_of_birth: dateOfBirth || null,
+  });
+
+  if (insertError) {
+    return { success: false, error: "Failed to add pet." };
+  }
+
+  revalidatePath("/dashboard/pets");
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
 export async function addClient(formData: FormData): Promise<ActionResult> {
   const fullName = (formData.get("fullName") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim();

@@ -21,6 +21,18 @@ export default async function PetsPage() {
     )
     .order("created_at", { ascending: false });
 
+  // Fetch clients for the Add Pet modal's client picker
+  const { data: clientRows } = await supabase
+    .from("clients")
+    .select("id, full_name, phone")
+    .order("full_name", { ascending: true });
+
+  const clientOptions = (clientRows ?? []).map((c) => ({
+    id: c.id as string,
+    fullName: c.full_name as string,
+    phone: c.phone as string | null,
+  }));
+
   const formattedPets = (pets ?? []).map((pet) => {
     // Calculate age label
     let ageLabel: string | null = null;
@@ -76,7 +88,7 @@ export default async function PetsPage() {
 
       <PetSearch pets={formattedPets} />
 
-      <AddPetModal />
+      <AddPetModal clients={clientOptions} />
     </div>
   );
 }

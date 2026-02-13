@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { UsersIcon } from "@/components/icons";
 import ClientSearch from "./components/ClientSearch";
-import AddClientModal from "./components/AddClientModal";
+import AddCustomerModal from "../components/AddCustomerModal";
 
 export default async function ClientsPage() {
   const supabase = await createClient();
@@ -174,7 +174,7 @@ export default async function ClientsPage() {
 
       <ClientSearch clients={formattedClients} servicePresets={servicePresets} />
 
-      <AddClientModal />
+      <AddCustomerModal />
     </div>
   );
 }
