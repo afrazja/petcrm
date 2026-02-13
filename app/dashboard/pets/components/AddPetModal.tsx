@@ -34,16 +34,16 @@ export default function AddPetModal() {
 
   return (
     <>
-      {/* FAB */}
+      {/* Add Pet Button */}
       <button
         onClick={() => {
           setIsOpen(true);
           setError(null);
         }}
-        className="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-sage-400 text-white shadow-lg hover:bg-sage-500 hover:shadow-xl active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer"
-        aria-label="Add pet"
+        className="fixed bottom-6 right-6 z-40 px-6 py-3.5 rounded-2xl bg-sage-400 text-white shadow-lg hover:bg-sage-500 hover:shadow-xl active:scale-95 transition-all duration-200 flex items-center gap-2 cursor-pointer font-medium text-base"
       >
-        <PlusIcon className="w-8 h-8" />
+        <PlusIcon className="w-5 h-5" />
+        Add Pet
       </button>
 
       {/* Modal */}
