@@ -1,6 +1,6 @@
 import { CalendarIcon, UsersIcon, PawPrintIcon, DollarIcon } from "@/components/icons";
 import { createClient } from "@/lib/supabase/server";
-import QuickCheckIn from "./components/QuickCheckIn";
+import AddCustomerModal from "./components/AddCustomerModal";
 import TodaysPetsList from "./components/TodaysPetsList";
 import Reminders from "./components/Reminders";
 
@@ -270,18 +270,6 @@ export default async function DashboardPage() {
     // vaccine query failed — that's fine
   }
 
-  // Fetch service presets for QuickCheckIn
-  const { data: presetRows } = await supabase
-    .from("service_presets")
-    .select("name, default_price, default_duration")
-    .order("sort_order", { ascending: true });
-
-  const servicePresets = (presetRows ?? []).map((p) => ({
-    name: p.name as string,
-    defaultPrice: Number(p.default_price),
-    defaultDuration: Number((p as unknown as { default_duration: number }).default_duration) || 60,
-  }));
-
   const stats = [
     {
       label: "Today's Check-Ins",
@@ -320,12 +308,12 @@ export default async function DashboardPage() {
             Get started with Mirifer
           </h3>
           <p className="text-sm text-sage-500 mb-4">
-            Tap the <span className="font-medium text-sage-600">+</span> button below to check in your first pet. That will create the client, pet, and first appointment automatically.
+            Tap the <span className="font-medium text-sage-600">+</span> button below to add your first customer with their pet(s).
           </p>
           <div className="flex flex-col gap-2 text-sm text-sage-500">
-            <p>1. Check in a pet to create your first client</p>
+            <p>1. Add a customer and their pets using the + button</p>
             <p>2. Set up your service prices in Settings</p>
-            <p>3. Schedule future appointments from the Appointments page</p>
+            <p>3. Schedule appointments from the Appointments page</p>
           </div>
         </div>
       )}
@@ -411,8 +399,8 @@ export default async function DashboardPage() {
       {/* Today's Pets */}
       <TodaysPetsList pets={formattedPets} />
 
-      {/* Quick Check-In FAB + Modal */}
-      <QuickCheckIn servicePresets={servicePresets} />
+      {/* Add Customer FAB + Modal */}
+      <AddCustomerModal />
     </div>
   );
 }

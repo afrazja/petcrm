@@ -331,6 +331,110 @@ export async function logVisit(
   return { success: true };
 }
 
+export async function addCustomerWithPets(formData: FormData): Promise<ActionResult> {
+  const fullName = (formData.get("fullName") as string)?.trim();
+  const phone = (formData.get("phone") as string)?.trim();
+  const email = (formData.get("email") as string)?.trim();
+  const notes = (formData.get("notes") as string)?.trim();
+  const petsJson = (formData.get("pets") as string) || "[]";
+
+  if (!fullName) {
+    return { success: false, error: "Full name is required." };
+  }
+  if (!phone) {
+    return { success: false, error: "Phone number is required." };
+  }
+
+  const normalizedPhone = phone.replace(/\D/g, "");
+  if (normalizedPhone.length < 7) {
+    return { success: false, error: "Please enter a valid phone number." };
+  }
+
+  let pets: { name: string; breed: string; dateOfBirth: string }[];
+  try {
+    pets = JSON.parse(petsJson);
+  } catch {
+    return { success: false, error: "Invalid pet data." };
+  }
+
+  if (!pets.length || !pets[0]?.name?.trim()) {
+    return { success: false, error: "At least one pet with a name is required." };
+  }
+
+  // Validate all pet names are non-empty
+  for (let i = 0; i < pets.length; i++) {
+    if (!pets[i].name?.trim()) {
+      return { success: false, error: `Pet #${i + 1} needs a name.` };
+    }
+  }
+
+  // Check for duplicate pet names within the submission
+  const petNames = pets.map((p) => p.name.trim().toLowerCase());
+  const uniqueNames = new Set(petNames);
+  if (uniqueNames.size !== petNames.length) {
+    return { success: false, error: "Each pet must have a unique name." };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: "You must be logged in." };
+  }
+
+  // Check for duplicate phone
+  const { data: existing } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("profile_id", user.id)
+    .eq("phone", normalizedPhone)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    return { success: false, error: "A client with this phone number already exists." };
+  }
+
+  // Create client
+  const { data: newClient, error: clientError } = await supabase
+    .from("clients")
+    .insert({
+      profile_id: user.id,
+      full_name: fullName,
+      phone: normalizedPhone,
+      email: email || null,
+      notes: notes || null,
+    })
+    .select("id")
+    .single();
+
+  if (clientError || !newClient) {
+    return { success: false, error: "Failed to add client." };
+  }
+
+  // Create all pets
+  const petRows = pets.map((p) => ({
+    client_id: newClient.id,
+    name: p.name.trim(),
+    breed: p.breed?.trim() || null,
+    date_of_birth: p.dateOfBirth || null,
+  }));
+
+  const { error: petsError } = await supabase.from("pets").insert(petRows);
+
+  if (petsError) {
+    return { success: false, error: "Client was created but failed to add pets." };
+  }
+
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard/pets");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
 export async function addClient(formData: FormData): Promise<ActionResult> {
   const fullName = (formData.get("fullName") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim();
