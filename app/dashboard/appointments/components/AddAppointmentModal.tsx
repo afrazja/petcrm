@@ -124,7 +124,7 @@ export default function AddAppointmentModal({ pets, servicePresets = [] }: Props
           setRebookData(null);
           setRebookSuccess(false);
         }}
-        className="fixed bottom-6 right-6 z-40 px-6 py-3.5 rounded-2xl bg-sage-400 text-white shadow-lg hover:bg-sage-500 hover:shadow-xl active:scale-95 transition-all duration-200 flex items-center gap-2 cursor-pointer font-medium text-base"
+        className="fixed bottom-6 right-6 z-40 px-6 py-3.5 rounded-xl bg-sage-400 text-white shadow-lg hover:bg-sage-500 hover:shadow-xl active:scale-95 transition-all duration-200 flex items-center gap-2 cursor-pointer font-medium text-base"
       >
         <PlusIcon className="w-5 h-5" />
         Add Appointment

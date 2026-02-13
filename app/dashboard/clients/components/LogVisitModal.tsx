@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef, useEffect } from "react";
 import { XIcon } from "@/components/icons";
 import { logVisit } from "@/app/dashboard/actions";
+import Button from "@/components/ui/Button";
 
 type PetOption = {
   id: string;
@@ -225,13 +226,9 @@ export default function LogVisitModal({
           )}
 
           {/* Submit */}
-          <button
-            type="submit"
-            disabled={isPending}
-            className="w-full py-3.5 bg-sage-400 hover:bg-sage-500 text-white font-semibold rounded-xl active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-base"
-          >
+          <Button type="submit" size="lg" className="w-full" disabled={isPending}>
             {isPending ? "Saving..." : "Log Visit"}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

@@ -188,7 +188,7 @@ export default function ClientCard({
         <div className="mt-3 flex items-center gap-2">
           <button
             onClick={() => setShowModal(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-sage-400 hover:bg-sage-500 text-white text-sm font-semibold rounded-xl active:scale-[0.98] transition-all"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-sage-400 hover:bg-sage-500 text-white text-sm font-medium rounded-xl active:scale-[0.98] transition-all"
           >
             <PlusIcon className="w-4 h-4" />
             Log Visit

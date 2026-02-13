@@ -229,7 +229,7 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
                     <button
                       onClick={() => handleSaveEdit(preset.id)}
                       disabled={isPending}
-                      className="px-3 py-2 text-xs font-medium bg-sage-400 text-white rounded-lg hover:bg-sage-500 transition-colors disabled:opacity-50"
+                      className="px-3 py-2 text-xs font-medium bg-sage-400 text-white rounded-xl hover:bg-sage-500 transition-colors disabled:opacity-50"
                     >
                       Save
                     </button>
@@ -252,7 +252,7 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
                         <button
                           onClick={() => handleDeleteConfirm(preset.id)}
                           disabled={isPending}
-                          className="px-3 py-1.5 text-xs font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                          className="px-3 py-1.5 text-xs font-medium bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50"
                         >
                           {isPending ? "Deleting..." : "Delete"}
                         </button>
@@ -352,7 +352,7 @@ export default function ServicePresetList({ presets: initialPresets }: Props) {
           <button
             onClick={handleAdd}
             disabled={isPending || !newName.trim()}
-            className="w-10 h-10 flex-shrink-0 rounded-lg bg-sage-400 text-white flex items-center justify-center hover:bg-sage-500 transition-colors disabled:opacity-50 cursor-pointer"
+            className="w-10 h-10 flex-shrink-0 rounded-xl bg-sage-400 text-white flex items-center justify-center hover:bg-sage-500 transition-colors disabled:opacity-50 cursor-pointer"
           >
             <PlusIcon className="w-5 h-5" />
           </button>
